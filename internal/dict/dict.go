@@ -2,6 +2,7 @@ package dict
 
 import (
 	"database/sql"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -255,4 +256,48 @@ func (d *SQLiteDict) resolveSubjects(subjIDs string, langID int) []string {
 	}
 
 	return subjects
+}
+
+// DetectLanguages returns the distinct language IDs in a dictionary database.
+func DetectLanguages(dbPath string) ([]int, error) {
+	db, err := sql.Open("sqlite3", dbPath+"?mode=ro")
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.Query("SELECT DISTINCT lang_id FROM subjects ORDER BY lang_id")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var langIDs []int
+	for rows.Next() {
+		var langID int
+		if err := rows.Scan(&langID); err != nil {
+			return nil, err
+		}
+		langIDs = append(langIDs, langID)
+	}
+
+	return langIDs, rows.Err()
+}
+
+// LanguageName maps a language ID to its name.
+func LanguageName(langID int) string {
+	switch langID {
+	case 1:
+		return "English"
+	case 2:
+		return "German"
+	case 55:
+		return "Italian"
+	case 36:
+		return "French"
+	case 108:
+		return "Spanish"
+	default:
+		return fmt.Sprintf("Unknown(%d)", langID)
+	}
 }

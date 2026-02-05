@@ -6,6 +6,7 @@ go.work.sum
 .env
 
 # nix / direnv
+result
 .direnv
 
 # Editor/IDE
