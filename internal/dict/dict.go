@@ -2,8 +2,8 @@ package dict
 
 import (
 	"database/sql"
-	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -18,7 +18,7 @@ type Dictionary interface {
 // SQLiteDict implements Dictionary using a SQLite database.
 type SQLiteDict struct {
 	db       *sql.DB
-	subjects map[string]string // subj_id -> abbreviation
+	subjects map[int]map[int]string // subj_id -> lang_id -> abbr
 }
 
 // Open opens a dictionary database at the given path.
@@ -44,22 +44,25 @@ func Open(dbPath string) (*SQLiteDict, error) {
 	return &SQLiteDict{db: db, subjects: subjects}, nil
 }
 
-// loadSubjects loads all subject abbreviations into memory.
-func loadSubjects(db *sql.DB) (map[string]string, error) {
-	rows, err := db.Query("SELECT subj_id, abbr FROM subjects WHERE lang_id = 1")
+// loadSubjects loads all subject abbreviations for all languages into memory.
+func loadSubjects(db *sql.DB) (map[int]map[int]string, error) {
+	rows, err := db.Query("SELECT subj_id, lang_id, abbr FROM subjects")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	subjects := make(map[string]string)
+	subjects := make(map[int]map[int]string)
 	for rows.Next() {
-		var id int
+		var subjID, langID int
 		var abbr string
-		if err := rows.Scan(&id, &abbr); err != nil {
+		if err := rows.Scan(&subjID, &langID, &abbr); err != nil {
 			return nil, err
 		}
-		subjects[fmt.Sprintf("%d", id)] = abbr
+		if subjects[subjID] == nil {
+			subjects[subjID] = make(map[int]string)
+		}
+		subjects[subjID][langID] = abbr
 	}
 
 	if err := rows.Err(); err != nil {
@@ -126,7 +129,9 @@ func (d *SQLiteDict) Lookup(word string) ([]Result, error) {
 		r.German = ParseTerm(germanRaw)
 		r.English = ParseTerm(englishRaw)
 		r.SortScore = sort2
-		r.Subjects = d.resolveSubjects(subjIDs)
+		// Resolve subjects for both languages
+		r.SubjectsEN = d.resolveSubjects(subjIDs, 1) // lang_id 1 = English
+		r.SubjectsDE = d.resolveSubjects(subjIDs, 2) // lang_id 2 = German
 
 		// Calculate match score (best of German or English)
 		germanScore := scoreMatch(r.German.Text, word)
@@ -221,7 +226,8 @@ func scoreMatch(text, word string) int {
 }
 
 // resolveSubjects converts comma-separated subject IDs to subject abbreviations.
-func (d *SQLiteDict) resolveSubjects(subjIDs string) []string {
+// langID: 1 = English, 2 = German
+func (d *SQLiteDict) resolveSubjects(subjIDs string, langID int) []string {
 	if subjIDs == "" {
 		return nil
 	}
@@ -233,12 +239,18 @@ func (d *SQLiteDict) resolveSubjects(subjIDs string) []string {
 	}
 
 	var subjects []string
-	for _, id := range ids {
-		if id == "" {
+	for _, idStr := range ids {
+		if idStr == "" {
 			continue
 		}
-		if abbr, ok := d.subjects[id]; ok {
-			subjects = append(subjects, abbr)
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			continue
+		}
+		if langMap, ok := d.subjects[id]; ok {
+			if abbr, ok := langMap[langID]; ok {
+				subjects = append(subjects, abbr)
+			}
 		}
 	}
 

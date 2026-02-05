@@ -28,13 +28,6 @@ func (c *CLI) Run() error {
 		return nil
 	}
 
-	for _, r := range results {
-		if r.WordType != "" {
-			fmt.Printf("%s\t%s\t[%s]\n", r.German.Full, r.English.Full, r.WordType)
-		} else {
-			fmt.Printf("%s\t%s\n", r.German.Full, r.English.Full)
-		}
-	}
-
+	fmt.Println(FormatResults(results, c.Word))
 	return nil
 }

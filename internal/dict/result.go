@@ -8,7 +8,8 @@ type Result struct {
 	WordType string     // Word class: noun, verb, adj, adv, etc.
 
 	// Extended fields (exposed in API, not displayed by default)
-	Subjects   []string // Subject areas, e.g., ["astron."]
+	SubjectsDE []string // Subject areas in German, e.g., ["astron."]
+	SubjectsEN []string // Subject areas in English, e.g., ["astron."]
 	Popularity int      // Usage frequency (10-53, higher = more common)
 	SortScore  int      // Relevance score (lower = simpler/more relevant)
 }
