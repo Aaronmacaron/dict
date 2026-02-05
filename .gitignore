@@ -1,0 +1,21 @@
+# Go workspace file
+go.work
+go.work.sum
+
+# env file
+.env
+
+# nix / direnv
+.direnv
+
+# Editor/IDE
+.idea/
+.vscode/
+
+# Claude
+CLAUDE.local.md
+.claude
+
+# Data
+data/*
+!data/.gitkeep
