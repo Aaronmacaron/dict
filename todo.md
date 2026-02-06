@@ -1,9 +1,7 @@
-- [ ] Filter out things like to <verb> or jdn. <verb> because currently the ranking is wrong (verbs are always ranked lower because it doesn't match because of the prefixed to)
 - [ ] Groups results by word category
 - [ ] Add config system and make everything configurable
 - [ ] Add support for arbitrary languages, not just hardcode english/german
 - [ ] CLI interface is kind of weird right now, implicit subcommand "lookup" and help page is kind of confusing, find better interface
-- [ ] Add unit tests
 - [ ] Add interactive mode where user can type and results show up as you type
 - [ ] Show similar words if none match
 - 

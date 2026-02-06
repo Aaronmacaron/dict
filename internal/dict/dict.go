@@ -78,10 +78,17 @@ func (d *SQLiteDict) Close() error {
 	return d.db.Close()
 }
 
-// scoredResult pairs a result with its match score for sorting.
+// scoredResult pairs a result with its scores for sorting.
 type scoredResult struct {
-	result Result
-	score  int
+	result      Result
+	hybridScore float64
+}
+
+// calculateHybridScore combines match quality and popularity into a single score.
+// Both matchScore and popularity are in the range [0, 1].
+// Returns: weighted hybrid score in range [0, 1].
+func calculateHybridScore(matchScore, popularity float64) float64 {
+	return matchScore*0.50 + popularity*0.50
 }
 
 // Lookup searches for translations of the given word.
@@ -93,11 +100,10 @@ func (d *SQLiteDict) Lookup(word string) ([]Result, error) {
 			m.term2,
 			m.entry_type,
 			m.subj_ids,
-			m.vt_usage,
-			m.sort2
+			MIN(MAX((m.vt_usage - 10.0) / 43.0, 0.0), 1.0) as popularity
 		FROM main_ft m
 		WHERE main_ft MATCH ?
-		ORDER BY m.vt_usage DESC, m.sort2 ASC
+		ORDER BY m.vt_usage DESC
 		LIMIT 100
 	`
 
@@ -112,7 +118,6 @@ func (d *SQLiteDict) Lookup(word string) ([]Result, error) {
 		var germanRaw, englishRaw string
 		var r Result
 		var subjIDs string
-		var sort2 int
 
 		err := rows.Scan(
 			&germanRaw,
@@ -120,7 +125,6 @@ func (d *SQLiteDict) Lookup(word string) ([]Result, error) {
 			&r.WordType,
 			&subjIDs,
 			&r.Popularity,
-			&sort2,
 		)
 		if err != nil {
 			return nil, err
@@ -129,7 +133,6 @@ func (d *SQLiteDict) Lookup(word string) ([]Result, error) {
 		// Parse terms into structured data
 		r.German = ParseTerm(germanRaw)
 		r.English = ParseTerm(englishRaw)
-		r.SortScore = sort2
 		// Resolve subjects for both languages
 		r.SubjectsEN = d.resolveSubjects(subjIDs, 1) // lang_id 1 = English
 		r.SubjectsDE = d.resolveSubjects(subjIDs, 2) // lang_id 2 = German
@@ -137,14 +140,15 @@ func (d *SQLiteDict) Lookup(word string) ([]Result, error) {
 		// Calculate match score (best of German or English)
 		germanScore := scoreMatch(r.German.Text, word)
 		englishScore := scoreMatch(r.English.Text, word)
-		score := germanScore
-		if englishScore > score {
-			score = englishScore
+		matchScore := germanScore
+		if englishScore > matchScore {
+			matchScore = englishScore
 		}
 
 		// Only include if there's a match
-		if score > 0 {
-			scored = append(scored, scoredResult{r, score})
+		if matchScore > 0.0 {
+			hybridScore := calculateHybridScore(matchScore, r.Popularity)
+			scored = append(scored, scoredResult{r, hybridScore})
 		}
 	}
 
@@ -152,15 +156,9 @@ func (d *SQLiteDict) Lookup(word string) ([]Result, error) {
 		return nil, err
 	}
 
-	// Sort by score (desc), then popularity (desc), then sort2 (asc)
+	// Sort by hybrid score (desc)
 	sort.Slice(scored, func(i, j int) bool {
-		if scored[i].score != scored[j].score {
-			return scored[i].score > scored[j].score
-		}
-		if scored[i].result.Popularity != scored[j].result.Popularity {
-			return scored[i].result.Popularity > scored[j].result.Popularity
-		}
-		return scored[i].result.SortScore < scored[j].result.SortScore
+		return scored[i].hybridScore > scored[j].hybridScore
 	})
 
 	// Extract results (limit to 20)
@@ -173,15 +171,15 @@ func (d *SQLiteDict) Lookup(word string) ([]Result, error) {
 }
 
 // scoreMatch calculates how well the term matches the search word.
-// Higher scores indicate better matches.
+// Returns a score between 0.0 and 1.0, where higher scores indicate better matches.
 // Exact word matches rank higher than prefix matches.
-func scoreMatch(text, word string) int {
+func scoreMatch(text, word string) float64 {
 	text = strings.ToLower(text)
 	word = strings.ToLower(word)
 
 	// Exact match (whole term)
 	if text == word {
-		return 1000
+		return 1.0
 	}
 
 	// Split into words/parts
@@ -192,38 +190,38 @@ func scoreMatch(text, word string) int {
 	// Query appears as exact word somewhere (e.g., "full moon")
 	for i := 1; i < len(parts); i++ {
 		if parts[i] == word {
-			return 900
+			return 0.9
 		}
 	}
 
 	// First word/part is exact match (e.g., "moon landing")
 	if len(parts) > 0 && parts[0] == word {
-		return 800
+		return 0.8
 	}
 
 	// Term starts with the search word as prefix (e.g., "moonlight")
 	if strings.HasPrefix(text, word) {
-		return 600
+		return 0.6
 	}
 
 	// First word/part starts with query (e.g., "Mondschein" for "Mond")
 	if len(parts) > 0 && strings.HasPrefix(parts[0], word) {
-		return 500
+		return 0.5
 	}
 
 	// Query is prefix of any word/part
 	for _, part := range parts {
 		if strings.HasPrefix(part, word) {
-			return 400
+			return 0.4
 		}
 	}
 
 	// Query appears somewhere in the term
 	if strings.Contains(text, word) {
-		return 200
+		return 0.2
 	}
 
-	return 0 // No match
+	return 0.0 // No match
 }
 
 // resolveSubjects converts comma-separated subject IDs to subject abbreviations.

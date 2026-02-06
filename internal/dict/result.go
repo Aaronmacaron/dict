@@ -10,6 +10,5 @@ type Result struct {
 	// Extended fields (exposed in API, not displayed by default)
 	SubjectsDE []string // Subject areas in German, e.g., ["astron."]
 	SubjectsEN []string // Subject areas in English, e.g., ["astron."]
-	Popularity int      // Usage frequency (10-53, higher = more common)
-	SortScore  int      // Relevance score (lower = simpler/more relevant)
+	Popularity float64  // Normalized usage frequency (0.0-1.0, higher = more common)
 }

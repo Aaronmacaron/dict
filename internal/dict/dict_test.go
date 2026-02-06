@@ -12,48 +12,90 @@ func TestScoreMatch(t *testing.T) {
 		name      string
 		text      string
 		word      string
-		wantScore int
+		wantScore float64
 	}{
 		// Exact matches
-		{"exact match", "moon", "moon", 1000},
-		{"exact match case insensitive", "Moon", "moon", 1000},
-		{"exact match uppercase query", "moon", "MOON", 1000},
+		{"exact match", "moon", "moon", 1.0},
+		{"exact match case insensitive", "Moon", "moon", 1.0},
+		{"exact match uppercase query", "moon", "MOON", 1.0},
 
 		// First word exact match
-		{"first word exact", "moon landing", "moon", 900},
-		{"first word exact case insensitive", "Moon landing", "moon", 900},
+		{"first word exact", "moon landing", "moon", 0.8},
+		{"first word exact case insensitive", "Moon landing", "moon", 0.8},
 
 		// Later word exact match
-		{"later word exact", "full moon", "moon", 800},
-		{"middle word exact", "the full moon rises", "moon", 800},
+		{"later word exact", "full moon", "moon", 0.9},
+		{"middle word exact", "the full moon rises", "moon", 0.9},
 
 		// Prefix of whole term
-		{"prefix of whole", "moonlight", "moon", 600},
-		{"prefix of whole case insensitive", "Moonlight", "moon", 600},
+		{"prefix of whole", "moonlight", "moon", 0.6},
+		{"prefix of whole case insensitive", "Moonlight", "moon", 0.6},
 
 		// Prefix of any word
-		{"prefix of later word", "full moonlight", "moon", 400},
+		{"prefix of later word", "full moonlight", "moon", 0.4},
 
 		// Substring match
-		{"substring", "Halbmond", "mond", 200},
-		{"substring in middle", "Vollmondnacht", "mond", 200},
+		{"substring", "Halbmond", "mond", 0.2},
+		{"substring in middle", "Vollmondnacht", "mond", 0.2},
 
 		// No match
-		{"no match", "sun", "moon", 0},
-		{"empty text", "", "moon", 0},
-		// Note: empty word returns 600 because HasPrefix(text, "") is always true
-		{"empty word matches prefix", "moon", "", 600},
+		{"no match", "sun", "moon", 0.0},
+		{"empty text", "", "moon", 0.0},
+		// Note: empty word returns 0.6 because HasPrefix(text, "") is always true
+		{"empty word matches prefix", "moon", "", 0.6},
 
 		// Hyphenated and slashed terms
-		{"hyphenated match", "half-moon", "moon", 800},
-		{"slash separated", "day/night", "night", 800},
+		{"hyphenated match", "half-moon", "moon", 0.9},
+		{"slash separated", "day/night", "night", 0.9},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ScoreMatch(tt.text, tt.word)
 			if got != tt.wantScore {
-				t.Errorf("ScoreMatch(%q, %q) = %d, want %d", tt.text, tt.word, got, tt.wantScore)
+				t.Errorf("ScoreMatch(%q, %q) = %f, want %f", tt.text, tt.word, got, tt.wantScore)
+			}
+		})
+	}
+}
+
+func TestCalculateHybridScore(t *testing.T) {
+	tests := []struct {
+		name       string
+		matchScore float64
+		popularity float64
+		want       float64
+	}{
+		// Exact match (1.0) with high popularity (1.0)
+		// 1.0*0.5 + 1.0*0.5 = 1.0
+		{"exact match high pop", 1.0, 1.0, 1.0},
+
+		// Exact match (1.0) with low popularity (0.0)
+		// 1.0*0.5 + 0.0*0.5 = 0.5
+		{"exact match low pop", 1.0, 0.0, 0.5},
+
+		// Prefix match (0.6) with high popularity (1.0)
+		// 0.6*0.5 + 1.0*0.5 = 0.8
+		{"prefix match high pop", 0.6, 1.0, 0.8},
+
+		// Prefix match (0.6) with low popularity (0.0)
+		// 0.6*0.5 + 0.0*0.5 = 0.3
+		{"prefix match low pop", 0.6, 0.0, 0.3},
+
+		// No match (0.0) with medium popularity (0.5)
+		// 0.0*0.5 + 0.5*0.5 = 0.25
+		{"no match medium pop", 0.0, 0.5, 0.25},
+
+		// Both zero
+		{"both zero", 0.0, 0.0, 0.0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := CalculateHybridScore(tt.matchScore, tt.popularity)
+			if got != tt.want {
+				t.Errorf("CalculateHybridScore(%f, %f) = %f, want %f",
+					tt.matchScore, tt.popularity, got, tt.want)
 			}
 		})
 	}
