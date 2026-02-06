@@ -189,16 +189,16 @@ func scoreMatch(text, word string) int {
 		return r == ' ' || r == '-' || r == '/'
 	})
 
-	// First word/part is exact match (e.g., "moon landing")
-	if len(parts) > 0 && parts[0] == word {
-		return 900
-	}
-
 	// Query appears as exact word somewhere (e.g., "full moon")
 	for i := 1; i < len(parts); i++ {
 		if parts[i] == word {
-			return 800
+			return 900
 		}
+	}
+
+	// First word/part is exact match (e.g., "moon landing")
+	if len(parts) > 0 && parts[0] == word {
+		return 800
 	}
 
 	// Term starts with the search word as prefix (e.g., "moonlight")
