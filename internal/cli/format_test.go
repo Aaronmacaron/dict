@@ -89,7 +89,7 @@ func TestFormatSubjects(t *testing.T) {
 
 func TestFormatResults(t *testing.T) {
 	t.Run("formats empty results", func(t *testing.T) {
-		got := FormatResults([]dict.Result{}, "moon")
+		got := FormatResults(&dict.LookupResult{Query: "moon"})
 		stripped := stripANSI(got)
 
 		// Should still have headers
@@ -99,14 +99,19 @@ func TestFormatResults(t *testing.T) {
 	})
 
 	t.Run("formats results with content", func(t *testing.T) {
-		results := []dict.Result{
-			{
-				German:  dict.ParseTerm("Mond {m}"),
-				English: dict.ParseTerm("moon"),
+		result := &dict.LookupResult{
+			Query: "moon",
+			Translations: []dict.ScoredTranslation{
+				{
+					Translation: dict.Translation{
+						German:  dict.ParseTerm("Mond {m}"),
+						English: dict.ParseTerm("moon"),
+					},
+				},
 			},
 		}
 
-		got := FormatResults(results, "moon")
+		got := FormatResults(result)
 		stripped := stripANSI(got)
 
 		// Should contain the terms
@@ -119,16 +124,24 @@ func TestFormatResults(t *testing.T) {
 	})
 
 	t.Run("formats results with subjects", func(t *testing.T) {
-		results := []dict.Result{
-			{
-				German:     dict.ParseTerm("Mond {m}"),
-				English:    dict.ParseTerm("moon"),
-				SubjectsDE: []string{"astron."},
-				SubjectsEN: []string{"astron."},
+		germanTerm := dict.ParseTerm("Mond {m}")
+		germanTerm.Subjects = []string{"astron."}
+		englishTerm := dict.ParseTerm("moon")
+		englishTerm.Subjects = []string{"astron."}
+
+		result := &dict.LookupResult{
+			Query: "moon",
+			Translations: []dict.ScoredTranslation{
+				{
+					Translation: dict.Translation{
+						German:  germanTerm,
+						English: englishTerm,
+					},
+				},
 			},
 		}
 
-		got := FormatResults(results, "moon")
+		got := FormatResults(result)
 		stripped := stripANSI(got)
 
 		// Should contain subject tags
@@ -138,14 +151,19 @@ func TestFormatResults(t *testing.T) {
 	})
 
 	t.Run("highlights search word", func(t *testing.T) {
-		results := []dict.Result{
-			{
-				German:  dict.ParseTerm("Mond {m}"),
-				English: dict.ParseTerm("moon"),
+		result := &dict.LookupResult{
+			Query: "moon",
+			Translations: []dict.ScoredTranslation{
+				{
+					Translation: dict.Translation{
+						German:  dict.ParseTerm("Mond {m}"),
+						English: dict.ParseTerm("moon"),
+					},
+				},
 			},
 		}
 
-		got := FormatResults(results, "moon")
+		got := FormatResults(result)
 
 		// Should contain ANSI codes for highlighting
 		if !strings.Contains(got, "\x1b[") {

@@ -12,19 +12,20 @@ var (
 	optionalRe = regexp.MustCompile(`\(([^)]+)\)`)
 )
 
-// ParsedTerm represents a dictionary term with its metadata separated.
-type ParsedTerm struct {
+// Term represents a dictionary term with its metadata separated.
+type Term struct {
 	Full         string   // Original full term: "Mond {m} [poet.]"
 	Text         string   // Clean term: "Mond"
 	Gender       string   // "m", "f", "n", "pl", "" (German only)
 	Abbreviation string   // Text in <...>
 	Context      []string // Text in [...] - can have multiple
 	Optional     []string // Text in (...) - optional parts
+	Subjects     []string // Subject areas, e.g., ["astron."]
 }
 
-// ParseTerm parses a raw term string into a ParsedTerm.
-func ParseTerm(raw string) ParsedTerm {
-	result := ParsedTerm{Full: raw}
+// ParseTerm parses a raw term string into a Term.
+func ParseTerm(raw string) Term {
+	result := Term{Full: raw}
 
 	text := raw
 

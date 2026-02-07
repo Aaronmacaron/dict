@@ -35,17 +35,17 @@ func (cmd *LookupCmd) Run(ctx *Context) error {
 	}
 	defer d.Close()
 
-	results, err := d.Lookup(cmd.Word)
+	result, err := d.Lookup(cmd.Word)
 	if err != nil {
 		return fmt.Errorf("lookup failed: %w", err)
 	}
 
-	if len(results) == 0 {
+	if len(result.Translations) == 0 {
 		fmt.Println("No results found.")
 		return nil
 	}
 
-	fmt.Println(FormatResults(results, cmd.Word))
+	fmt.Println(FormatResults(result))
 	return nil
 }
 

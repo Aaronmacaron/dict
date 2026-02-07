@@ -1,14 +1,21 @@
 package dict
 
-// Result represents a single dictionary translation entry.
-type Result struct {
-	// Core fields (always displayed)
-	German   ParsedTerm // German term with parsed metadata
-	English  ParsedTerm // English term with parsed metadata
-	WordType string     // Word class: noun, verb, adj, adv, etc.
+// Translation represents a bidirectional translation entry (stable, query-independent).
+type Translation struct {
+	German     Term
+	English    Term
+	WordType   string  // Word class: noun, verb, adj, adv, etc.
+	Popularity float64 // Normalized usage frequency (0.0-1.0, higher = more common)
+}
 
-	// Extended fields (exposed in API, not displayed by default)
-	SubjectsDE []string // Subject areas in German, e.g., ["astron."]
-	SubjectsEN []string // Subject areas in English, e.g., ["astron."]
-	Popularity float64  // Normalized usage frequency (0.0-1.0, higher = more common)
+// ScoredTranslation pairs a translation with its query-specific relevance score.
+type ScoredTranslation struct {
+	Translation Translation
+	Score       float64 // hybrid score 0.0–1.0
+}
+
+// LookupResult contains the results of a dictionary lookup.
+type LookupResult struct {
+	Query        string
+	Translations []ScoredTranslation
 }

@@ -12,7 +12,7 @@ import (
 
 // Dictionary provides word lookup functionality.
 type Dictionary interface {
-	Lookup(word string) ([]Result, error)
+	Lookup(word string) (*LookupResult, error)
 	Close() error
 }
 
@@ -78,12 +78,6 @@ func (d *SQLiteDict) Close() error {
 	return d.db.Close()
 }
 
-// scoredResult pairs a result with its scores for sorting.
-type scoredResult struct {
-	result      Result
-	hybridScore float64
-}
-
 // calculateHybridScore combines match quality and popularity into a single score.
 // Both matchScore and popularity are in the range [0, 1].
 // Returns: weighted hybrid score in range [0, 1].
@@ -92,7 +86,7 @@ func calculateHybridScore(matchScore, popularity float64) float64 {
 }
 
 // Lookup searches for translations of the given word.
-func (d *SQLiteDict) Lookup(word string) ([]Result, error) {
+func (d *SQLiteDict) Lookup(word string) (*LookupResult, error) {
 	// Fetch more results than needed since we'll filter some out
 	query := `
 		SELECT
@@ -113,33 +107,39 @@ func (d *SQLiteDict) Lookup(word string) ([]Result, error) {
 	}
 	defer rows.Close()
 
-	var scored []scoredResult
+	var scored []ScoredTranslation
 	for rows.Next() {
 		var germanRaw, englishRaw string
-		var r Result
-		var subjIDs string
+		var wordType, subjIDs string
+		var popularity float64
 
 		err := rows.Scan(
 			&germanRaw,
 			&englishRaw,
-			&r.WordType,
+			&wordType,
 			&subjIDs,
-			&r.Popularity,
+			&popularity,
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		// Parse terms into structured data
-		r.German = ParseTerm(germanRaw)
-		r.English = ParseTerm(englishRaw)
-		// Resolve subjects for both languages
-		r.SubjectsEN = d.resolveSubjects(subjIDs, 1) // lang_id 1 = English
-		r.SubjectsDE = d.resolveSubjects(subjIDs, 2) // lang_id 2 = German
+		// Parse terms into structured data with subjects
+		german := ParseTerm(germanRaw)
+		german.Subjects = d.resolveSubjects(subjIDs, 2) // lang_id 2 = German
+		english := ParseTerm(englishRaw)
+		english.Subjects = d.resolveSubjects(subjIDs, 1) // lang_id 1 = English
+
+		tr := Translation{
+			German:     german,
+			English:    english,
+			WordType:   wordType,
+			Popularity: popularity,
+		}
 
 		// Calculate match score (best of German or English)
-		germanScore := scoreMatch(r.German.Text, word)
-		englishScore := scoreMatch(r.English.Text, word)
+		germanScore := scoreMatch(german.Text, word)
+		englishScore := scoreMatch(english.Text, word)
 		matchScore := germanScore
 		if englishScore > matchScore {
 			matchScore = englishScore
@@ -147,8 +147,8 @@ func (d *SQLiteDict) Lookup(word string) ([]Result, error) {
 
 		// Only include if there's a match
 		if matchScore > 0.0 {
-			hybridScore := calculateHybridScore(matchScore, r.Popularity)
-			scored = append(scored, scoredResult{r, hybridScore})
+			hybridScore := calculateHybridScore(matchScore, popularity)
+			scored = append(scored, ScoredTranslation{Translation: tr, Score: hybridScore})
 		}
 	}
 
@@ -158,16 +158,15 @@ func (d *SQLiteDict) Lookup(word string) ([]Result, error) {
 
 	// Sort by hybrid score (desc)
 	sort.Slice(scored, func(i, j int) bool {
-		return scored[i].hybridScore > scored[j].hybridScore
+		return scored[i].Score > scored[j].Score
 	})
 
-	// Extract results (limit to 20)
-	results := make([]Result, 0, 20)
-	for i := 0; i < len(scored) && i < 20; i++ {
-		results = append(results, scored[i].result)
+	// Limit to 20
+	if len(scored) > 20 {
+		scored = scored[:20]
 	}
 
-	return results, nil
+	return &LookupResult{Query: word, Translations: scored}, nil
 }
 
 // scoreMatch calculates how well the term matches the search word.

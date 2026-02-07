@@ -32,10 +32,10 @@ var (
 			Background(gray)   // Gray background
 )
 
-// formatTerm formats a ParsedTerm with styling.
+// formatTerm formats a Term with styling.
 // - Search word is bold
-// - Metadata (gender, context, abbr) has colored styling
-func formatTerm(term dict.ParsedTerm, searchWord string) string {
+// - Metadata (gender, context, abbr, subjects) has colored styling
+func formatTerm(term dict.Term, searchWord string) string {
 	// Highlight search word in the clean text
 	text := highlightWord(term.Text, searchWord)
 
@@ -51,6 +51,9 @@ func formatTerm(term dict.ParsedTerm, searchWord string) string {
 	}
 	for _, ctx := range term.Context {
 		parts = append(parts, contextStyle.Render("["+ctx+"]"))
+	}
+	if len(term.Subjects) > 0 {
+		parts = append(parts, formatSubjects(term.Subjects))
 	}
 
 	return strings.Join(parts, " ")
@@ -85,7 +88,7 @@ func highlightWord(text, word string) string {
 }
 
 // FormatResults formats results as a styled table.
-func FormatResults(results []dict.Result, searchWord string) string {
+func FormatResults(result *dict.LookupResult) string {
 	t := table.New().
 		Border(lipgloss.NormalBorder()).
 		BorderStyle(lipgloss.NewStyle().Foreground(lightGray)).
@@ -97,18 +100,9 @@ func FormatResults(results []dict.Result, searchWord string) string {
 			return lipgloss.NewStyle()
 		})
 
-	for _, r := range results {
-		german := formatTerm(r.German, searchWord)
-		english := formatTerm(r.English, searchWord)
-
-		// Append subjects if present (in respective language)
-		if len(r.SubjectsDE) > 0 {
-			german = german + " " + formatSubjects(r.SubjectsDE)
-		}
-		if len(r.SubjectsEN) > 0 {
-			english = english + " " + formatSubjects(r.SubjectsEN)
-		}
-
+	for _, st := range result.Translations {
+		german := formatTerm(st.Translation.German, result.Query)
+		english := formatTerm(st.Translation.English, result.Query)
 		t.Row(german, english)
 	}
 

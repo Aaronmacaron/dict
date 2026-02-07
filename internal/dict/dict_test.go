@@ -188,28 +188,29 @@ func TestLookup(t *testing.T) {
 	defer d.Close()
 
 	t.Run("finds exact match", func(t *testing.T) {
-		results, err := d.Lookup("moon")
+		result, err := d.Lookup("moon")
 		if err != nil {
 			t.Fatalf("Lookup() error = %v", err)
 		}
 
-		if len(results) == 0 {
+		if len(result.Translations) == 0 {
 			t.Fatal("Lookup() returned no results")
 		}
 
 		// First result should be exact match
-		if results[0].English.Text != "moon" {
-			t.Errorf("First result English.Text = %q, want %q", results[0].English.Text, "moon")
+		first := result.Translations[0].Translation
+		if first.English.Text != "moon" {
+			t.Errorf("First result English.Text = %q, want %q", first.English.Text, "moon")
 		}
 	})
 
 	t.Run("scores exact matches higher than prefix", func(t *testing.T) {
-		results, err := d.Lookup("moon")
+		result, err := d.Lookup("moon")
 		if err != nil {
 			t.Fatalf("Lookup() error = %v", err)
 		}
 
-		if len(results) < 2 {
+		if len(result.Translations) < 2 {
 			t.Skip("Need at least 2 results to test ordering")
 		}
 
@@ -219,12 +220,12 @@ func TestLookup(t *testing.T) {
 		exactPos := -1
 		prefixPos := -1
 
-		for i, r := range results {
-			if r.English.Text == "moon" {
+		for i, st := range result.Translations {
+			if st.Translation.English.Text == "moon" {
 				foundExact = true
 				exactPos = i
 			}
-			if r.English.Text == "moonlight" {
+			if st.Translation.English.Text == "moonlight" {
 				foundPrefix = true
 				prefixPos = i
 			}
@@ -236,31 +237,32 @@ func TestLookup(t *testing.T) {
 	})
 
 	t.Run("resolves subjects", func(t *testing.T) {
-		results, err := d.Lookup("moon")
+		result, err := d.Lookup("moon")
 		if err != nil {
 			t.Fatalf("Lookup() error = %v", err)
 		}
 
-		if len(results) == 0 {
+		if len(result.Translations) == 0 {
 			t.Fatal("Lookup() returned no results")
 		}
 
-		// First result should have astronomy subject
-		if len(results[0].SubjectsEN) == 0 {
-			t.Error("Expected SubjectsEN to be populated")
-		} else if results[0].SubjectsEN[0] != "astron." {
-			t.Errorf("SubjectsEN[0] = %q, want %q", results[0].SubjectsEN[0], "astron.")
+		// First result should have astronomy subject on English term
+		first := result.Translations[0].Translation
+		if len(first.English.Subjects) == 0 {
+			t.Error("Expected English.Subjects to be populated")
+		} else if first.English.Subjects[0] != "astron." {
+			t.Errorf("English.Subjects[0] = %q, want %q", first.English.Subjects[0], "astron.")
 		}
 	})
 
 	t.Run("no results for unknown word", func(t *testing.T) {
-		results, err := d.Lookup("xyznonexistent")
+		result, err := d.Lookup("xyznonexistent")
 		if err != nil {
 			t.Fatalf("Lookup() error = %v", err)
 		}
 
-		if len(results) != 0 {
-			t.Errorf("Lookup() returned %d results, want 0", len(results))
+		if len(result.Translations) != 0 {
+			t.Errorf("Lookup() returned %d results, want 0", len(result.Translations))
 		}
 	})
 }
