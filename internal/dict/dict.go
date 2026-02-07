@@ -161,9 +161,9 @@ func (d *SQLiteDict) Lookup(word string) (*LookupResult, error) {
 		return scored[i].Score > scored[j].Score
 	})
 
-	// Limit to 20
-	if len(scored) > 20 {
-		scored = scored[:20]
+	// Limit to 50
+	if len(scored) > 50 {
+		scored = scored[:50]
 	}
 
 	return &LookupResult{Query: word, Translations: scored}, nil

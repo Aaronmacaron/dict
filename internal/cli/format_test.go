@@ -89,12 +89,9 @@ func TestFormatSubjects(t *testing.T) {
 
 func TestFormatResults(t *testing.T) {
 	t.Run("formats empty results", func(t *testing.T) {
-		got := FormatResults(&dict.LookupResult{Query: "moon"})
-		stripped := stripANSI(got)
-
-		// Should still have headers
-		if !strings.Contains(stripped, "GERMAN") || !strings.Contains(stripped, "ENGLISH") {
-			t.Error("FormatResults() should contain column headers")
+		got := FormatResults(&dict.LookupResult{Query: "moon"}, false)
+		if got != "" {
+			t.Errorf("FormatResults() for empty results = %q, want empty string", got)
 		}
 	})
 
@@ -104,14 +101,15 @@ func TestFormatResults(t *testing.T) {
 			Translations: []dict.ScoredTranslation{
 				{
 					Translation: dict.Translation{
-						German:  dict.ParseTerm("Mond {m}"),
-						English: dict.ParseTerm("moon"),
+						German:   dict.ParseTerm("Mond {m}"),
+						English:  dict.ParseTerm("moon"),
+						WordType: "noun",
 					},
 				},
 			},
 		}
 
-		got := FormatResults(result)
+		got := FormatResults(result, false)
 		stripped := stripANSI(got)
 
 		// Should contain the terms
@@ -134,14 +132,15 @@ func TestFormatResults(t *testing.T) {
 			Translations: []dict.ScoredTranslation{
 				{
 					Translation: dict.Translation{
-						German:  germanTerm,
-						English: englishTerm,
+						German:   germanTerm,
+						English:  englishTerm,
+						WordType: "noun",
 					},
 				},
 			},
 		}
 
-		got := FormatResults(result)
+		got := FormatResults(result, false)
 		stripped := stripANSI(got)
 
 		// Should contain subject tags
@@ -156,18 +155,246 @@ func TestFormatResults(t *testing.T) {
 			Translations: []dict.ScoredTranslation{
 				{
 					Translation: dict.Translation{
-						German:  dict.ParseTerm("Mond {m}"),
-						English: dict.ParseTerm("moon"),
+						German:   dict.ParseTerm("Mond {m}"),
+						English:  dict.ParseTerm("moon"),
+						WordType: "noun",
 					},
 				},
 			},
 		}
 
-		got := FormatResults(result)
+		got := FormatResults(result, false)
 
 		// Should contain ANSI codes for highlighting
 		if !strings.Contains(got, "\x1b[") {
 			t.Error("FormatResults() should contain ANSI styling codes")
+		}
+	})
+}
+
+func TestGroupByWordType(t *testing.T) {
+	t.Run("groups by word type", func(t *testing.T) {
+		translations := []dict.ScoredTranslation{
+			{Translation: dict.Translation{WordType: "noun"}, Score: 0.9},
+			{Translation: dict.Translation{WordType: "verb"}, Score: 0.8},
+			{Translation: dict.Translation{WordType: "noun"}, Score: 0.7},
+			{Translation: dict.Translation{WordType: "adj"}, Score: 0.6},
+		}
+
+		groups := GroupByWordType(translations)
+
+		if len(groups) != 3 {
+			t.Fatalf("got %d groups, want 3", len(groups))
+		}
+
+		// First group should be noun (best score 0.9)
+		if groups[0].wordType != "noun" {
+			t.Errorf("first group type = %q, want %q", groups[0].wordType, "noun")
+		}
+		if len(groups[0].translations) != 2 {
+			t.Errorf("noun group has %d translations, want 2", len(groups[0].translations))
+		}
+
+		// Second group should be verb (best score 0.8)
+		if groups[1].wordType != "verb" {
+			t.Errorf("second group type = %q, want %q", groups[1].wordType, "verb")
+		}
+	})
+
+	t.Run("empty word type goes last", func(t *testing.T) {
+		translations := []dict.ScoredTranslation{
+			{Translation: dict.Translation{WordType: ""}, Score: 1.0},
+			{Translation: dict.Translation{WordType: "noun"}, Score: 0.5},
+		}
+
+		groups := GroupByWordType(translations)
+
+		if len(groups) != 2 {
+			t.Fatalf("got %d groups, want 2", len(groups))
+		}
+		if groups[0].wordType != "noun" {
+			t.Errorf("first group = %q, want %q", groups[0].wordType, "noun")
+		}
+		if groups[1].wordType != "" {
+			t.Errorf("last group = %q, want empty", groups[1].wordType)
+		}
+	})
+
+	t.Run("empty input", func(t *testing.T) {
+		groups := GroupByWordType(nil)
+		if len(groups) != 0 {
+			t.Errorf("got %d groups, want 0", len(groups))
+		}
+	})
+}
+
+func TestWordTypeLabel(t *testing.T) {
+	tests := []struct {
+		wordType string
+		want     string
+	}{
+		{"noun", "Nouns"},
+		{"verb", "Verbs"},
+		{"adj", "Adjectives"},
+		{"", "Other"},
+		{"adj past-p", "Adj Past-p"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.wordType, func(t *testing.T) {
+			got := WordTypeLabel(tt.wordType)
+			if got != tt.want {
+				t.Errorf("WordTypeLabel(%q) = %q, want %q", tt.wordType, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFormatResultsGrouped(t *testing.T) {
+	t.Run("truncation hint shown", func(t *testing.T) {
+		var translations []dict.ScoredTranslation
+		for i := 0; i < 8; i++ {
+			translations = append(translations, dict.ScoredTranslation{
+				Translation: dict.Translation{
+					German:   dict.ParseTerm("Wort"),
+					English:  dict.ParseTerm("word"),
+					WordType: "noun",
+				},
+				Score: float64(8-i) / 10.0,
+			})
+		}
+
+		got := FormatResults(&dict.LookupResult{Query: "word", Translations: translations}, false)
+		stripped := stripANSI(got)
+
+		if !strings.Contains(stripped, "+ 3 more") {
+			t.Error("should show '+ 3 more' hint for 8 results with cap 5")
+		}
+		if !strings.Contains(stripped, "Use -a to show all results.") {
+			t.Error("should show footer hint when truncated")
+		}
+	})
+
+	t.Run("full mode shows all", func(t *testing.T) {
+		var translations []dict.ScoredTranslation
+		for i := 0; i < 8; i++ {
+			translations = append(translations, dict.ScoredTranslation{
+				Translation: dict.Translation{
+					German:   dict.ParseTerm("Wort"),
+					English:  dict.ParseTerm("word"),
+					WordType: "noun",
+				},
+				Score: float64(8-i) / 10.0,
+			})
+		}
+
+		got := FormatResults(&dict.LookupResult{Query: "word", Translations: translations}, true)
+		stripped := stripANSI(got)
+
+		if strings.Contains(stripped, "+ 3 more") {
+			t.Error("full mode should not show truncation hint")
+		}
+		if strings.Contains(stripped, "Use -a to show all results.") {
+			t.Error("full mode should not show footer hint")
+		}
+	})
+
+	t.Run("section headers present", func(t *testing.T) {
+		translations := []dict.ScoredTranslation{
+			{
+				Translation: dict.Translation{
+					German:   dict.ParseTerm("Mond {m}"),
+					English:  dict.ParseTerm("moon"),
+					WordType: "noun",
+				},
+				Score: 0.9,
+			},
+			{
+				Translation: dict.Translation{
+					German:   dict.ParseTerm("monden"),
+					English:  dict.ParseTerm("to moon"),
+					WordType: "verb",
+				},
+				Score: 0.7,
+			},
+		}
+
+		got := FormatResults(&dict.LookupResult{Query: "moon", Translations: translations}, false)
+		stripped := stripANSI(got)
+
+		if !strings.Contains(stripped, "Nouns") {
+			t.Error("should contain 'Nouns' section header")
+		}
+		if !strings.Contains(stripped, "Verbs") {
+			t.Error("should contain 'Verbs' section header")
+		}
+	})
+
+	t.Run("tables aligned across groups", func(t *testing.T) {
+		translations := []dict.ScoredTranslation{
+			{
+				Translation: dict.Translation{
+					German:   dict.ParseTerm("Mondfinsternis {f}"),
+					English:  dict.ParseTerm("lunar eclipse"),
+					WordType: "noun",
+				},
+				Score: 0.9,
+			},
+			{
+				Translation: dict.Translation{
+					German:   dict.ParseTerm("monden"),
+					English:  dict.ParseTerm("to moon"),
+					WordType: "verb",
+				},
+				Score: 0.7,
+			},
+		}
+
+		got := FormatResults(&dict.LookupResult{Query: "moon", Translations: translations}, false)
+		stripped := stripANSI(got)
+		lines := strings.Split(stripped, "\n")
+
+		// Find border lines (start with ┌, ├, or └) — they reflect the table width.
+		// All tables should produce border lines of the same length.
+		var borderLengths []int
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "┌") || strings.HasPrefix(trimmed, "└") {
+				borderLengths = append(borderLengths, len(trimmed))
+			}
+		}
+
+		if len(borderLengths) < 2 {
+			t.Fatalf("expected at least 2 border lines, got %d", len(borderLengths))
+		}
+		for i := 1; i < len(borderLengths); i++ {
+			if borderLengths[i] != borderLengths[0] {
+				t.Errorf("border line %d has length %d, want %d (same as first)",
+					i, borderLengths[i], borderLengths[0])
+			}
+		}
+	})
+
+	t.Run("no truncation when under cap", func(t *testing.T) {
+		translations := []dict.ScoredTranslation{
+			{
+				Translation: dict.Translation{
+					German:   dict.ParseTerm("Mond {m}"),
+					English:  dict.ParseTerm("moon"),
+					WordType: "noun",
+				},
+				Score: 0.9,
+			},
+		}
+
+		got := FormatResults(&dict.LookupResult{Query: "moon", Translations: translations}, false)
+		stripped := stripANSI(got)
+
+		if strings.Contains(stripped, "more") {
+			t.Error("should not show truncation hint when under cap")
+		}
+		if strings.Contains(stripped, "Use -a") {
+			t.Error("should not show footer hint when nothing truncated")
 		}
 	})
 }

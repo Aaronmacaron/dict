@@ -20,6 +20,7 @@ type CLI struct {
 // LookupCmd handles word lookup (the default command).
 type LookupCmd struct {
 	Word string `arg:"" help:"Word to look up"`
+	All  bool   `short:"a" help:"Show all results (no per-group limit)"`
 }
 
 // Run executes the lookup command.
@@ -45,7 +46,7 @@ func (cmd *LookupCmd) Run(ctx *Context) error {
 		return nil
 	}
 
-	fmt.Println(FormatResults(result))
+	fmt.Println(FormatResults(result, cmd.All))
 	return nil
 }
 

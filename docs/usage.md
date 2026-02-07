@@ -29,7 +29,10 @@ dict <word>
 dict moon          # Look up "moon"
 dict Mond          # Look up "Mond"
 dict "full moon"   # Look up a phrase
+dict -a moon       # Show all results (no per-group limit)
 ```
+
+Results are grouped by word type (nouns, verbs, adjectives, etc.) with up to 5 results per group. Use `--all` / `-a` to show all results.
 
 ### Dictionary Management
 
@@ -86,6 +89,12 @@ These flags can be used with any command:
 | `--dict` | `-d` | Use a specific dictionary (by name) |
 | `--config-dir` | `-c` | Use a custom config directory |
 
+### Lookup Flags
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--all` | `-a` | Show all results (no per-group limit) |
+
 **Examples:**
 ```sh
 dict -d dictcc-fr-en.db bonjour     # Use French-English dictionary
@@ -123,7 +132,9 @@ dict = "dictcc-en-de.db"
 
 ## Output Format
 
-Results are displayed in a table with German and English columns:
+Results are grouped by word type (e.g., Nouns, Verbs, Adjectives) with a colored section header for each group. Each group shows up to 5 results by default, with a `+ N more` hint when truncated.
+
+Within each group, translations are displayed in a table with German and English columns:
 
 - **Bold text**: Matches your search term
 - **{m} {f} {n} {pl}**: Grammatical gender (masculine, feminine, neuter, plural)

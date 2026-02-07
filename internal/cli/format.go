@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -15,6 +17,8 @@ func init() {
 	lipgloss.SetColorProfile(termenv.ANSI256)
 }
 
+const defaultGroupCap = 5
+
 var (
 	white     = lipgloss.Color("15")
 	lightBlue = lipgloss.Color("12")
@@ -22,7 +26,6 @@ var (
 	gray      = lipgloss.Color("240")
 	orange    = lipgloss.Color("221")
 
-	headerStyle  = lipgloss.NewStyle().Bold(true)
 	boldStyle    = lipgloss.NewStyle().Bold(true)
 	genderStyle  = lipgloss.NewStyle().Foreground(lightBlue) // Blue
 	contextStyle = lipgloss.NewStyle().Foreground(lightGray) // Gray
@@ -30,7 +33,51 @@ var (
 	subjectStyle = lipgloss.NewStyle().
 			Foreground(white). // White
 			Background(gray)   // Gray background
+
+	wordTypeLabels = map[string]string{
+		"noun":   "Nouns",
+		"verb":   "Verbs",
+		"adj":    "Adjectives",
+		"adv":    "Adverbs",
+		"prep":   "Prepositions",
+		"conj":   "Conjunctions",
+		"pron":   "Pronouns",
+		"prefix": "Prefixes",
+		"suffix": "Suffixes",
+		"past-p": "Past Participles",
+		"pres-p": "Present Participles",
+	}
+
+	wordTypeColors = map[string]lipgloss.Color{
+		"noun":   lipgloss.Color("75"),  // steel blue
+		"verb":   lipgloss.Color("114"), // green
+		"adj":    lipgloss.Color("180"), // gold
+		"adv":    lipgloss.Color("139"), // mauve
+		"prep":   lipgloss.Color("109"), // teal
+		"conj":   lipgloss.Color("174"), // pink
+		"pron":   lipgloss.Color("146"), // lavender
+		"prefix": lipgloss.Color("137"), // tan
+		"suffix": lipgloss.Color("137"), // tan
+		"past-p": lipgloss.Color("114"), // green (same as verb)
+		"pres-p": lipgloss.Color("114"), // green (same as verb)
+	}
+
+	defaultWordTypeColor = lipgloss.Color("245") // gray
 )
+
+type wordTypeGroup struct {
+	wordType     string
+	label        string
+	color        lipgloss.Color
+	translations []dict.ScoredTranslation
+	bestScore    float64
+}
+
+// formattedRow holds pre-formatted cell strings for a single translation.
+type formattedRow struct {
+	german  string
+	english string
+}
 
 // formatTerm formats a Term with styling.
 // - Search word is bold
@@ -87,24 +134,184 @@ func highlightWord(text, word string) string {
 	return text[:idx] + boldStyle.Render(matched) + text[idx+len(word):]
 }
 
-// FormatResults formats results as a styled table.
-func FormatResults(result *dict.LookupResult) string {
-	t := table.New().
-		Border(lipgloss.NormalBorder()).
-		BorderStyle(lipgloss.NewStyle().Foreground(lightGray)).
-		Headers("GERMAN 🇩🇪", "ENGLISH 🇬🇧").
-		StyleFunc(func(row, col int) lipgloss.Style {
-			if row == table.HeaderRow {
-				return headerStyle
+// wordTypeLabel returns a human-readable label for a word type.
+func wordTypeLabel(wordType string) string {
+	if wordType == "" {
+		return "Other"
+	}
+	if label, ok := wordTypeLabels[wordType]; ok {
+		return label
+	}
+	// Title-case fallback for unknown/combo types
+	words := strings.Fields(wordType)
+	for i, w := range words {
+		if len(w) > 0 {
+			words[i] = strings.ToUpper(w[:1]) + w[1:]
+		}
+	}
+	return strings.Join(words, " ")
+}
+
+// wordTypeColor returns the color for a word type.
+func wordTypeColor(wordType string) lipgloss.Color {
+	if c, ok := wordTypeColors[wordType]; ok {
+		return c
+	}
+	return defaultWordTypeColor
+}
+
+// groupByWordType partitions translations into groups by word type,
+// sorted by best score within each group, with "Other" (empty type) last.
+func groupByWordType(translations []dict.ScoredTranslation) []wordTypeGroup {
+	groupMap := make(map[string]*wordTypeGroup)
+	var order []string
+
+	for _, st := range translations {
+		wt := st.Translation.WordType
+		g, exists := groupMap[wt]
+		if !exists {
+			g = &wordTypeGroup{
+				wordType: wt,
+				label:    wordTypeLabel(wt),
+				color:    wordTypeColor(wt),
 			}
-			return lipgloss.NewStyle()
+			groupMap[wt] = g
+			order = append(order, wt)
+		}
+		g.translations = append(g.translations, st)
+		if st.Score > g.bestScore {
+			g.bestScore = st.Score
+		}
+	}
+
+	// Build slice from map
+	groups := make([]wordTypeGroup, 0, len(groupMap))
+	for _, wt := range order {
+		groups = append(groups, *groupMap[wt])
+	}
+
+	// Sort by best score descending, "Other" (empty type) always last
+	sort.SliceStable(groups, func(i, j int) bool {
+		iEmpty := groups[i].wordType == ""
+		jEmpty := groups[j].wordType == ""
+		if iEmpty != jEmpty {
+			return !iEmpty
+		}
+		return groups[i].bestScore > groups[j].bestScore
+	})
+
+	return groups
+}
+
+// renderGroupHeader renders a styled section header like "── Nouns ──".
+func renderGroupHeader(label string, color lipgloss.Color) string {
+	style := lipgloss.NewStyle().Foreground(color).Bold(true)
+	dash := lipgloss.NewStyle().Foreground(color).Render("──")
+	return " " + dash + " " + style.Render(label) + " " + dash
+}
+
+// renderGroupTable renders a headerless table for a group of translations
+// with fixed column widths for cross-group alignment.
+func renderGroupTable(rows []formattedRow, colWidths [2]int) string {
+	t := table.New().
+		Border(lipgloss.RoundedBorder()).
+		BorderStyle(lipgloss.NewStyle().Foreground(lightGray)).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			return lipgloss.NewStyle().Width(colWidths[col])
 		})
 
-	for _, st := range result.Translations {
-		german := formatTerm(st.Translation.German, result.Query)
-		english := formatTerm(st.Translation.English, result.Query)
-		t.Row(german, english)
+	for _, r := range rows {
+		t.Row(r.german, r.english)
 	}
 
 	return t.Render()
+}
+
+// FormatResults formats results as grouped styled tables by word type.
+func FormatResults(result *dict.LookupResult, showAll bool) string {
+	if len(result.Translations) == 0 {
+		return ""
+	}
+
+	groups := groupByWordType(result.Translations)
+
+	// First pass: format all visible cells and compute column widths.
+	type groupDisplay struct {
+		group     wordTypeGroup
+		rows      []formattedRow
+		truncated int
+	}
+
+	var displays []groupDisplay
+	anyTruncated := false
+
+	for _, g := range groups {
+		showing := g.translations
+		truncated := 0
+		if !showAll && len(showing) > defaultGroupCap {
+			truncated = len(showing) - defaultGroupCap
+			showing = showing[:defaultGroupCap]
+			anyTruncated = true
+		}
+
+		rows := make([]formattedRow, len(showing))
+		for i, st := range showing {
+			rows[i] = formattedRow{
+				german:  formatTerm(st.Translation.German, result.Query),
+				english: formatTerm(st.Translation.English, result.Query),
+			}
+		}
+
+		displays = append(displays, groupDisplay{
+			group:     g,
+			rows:      rows,
+			truncated: truncated,
+		})
+	}
+
+	// Compute max visual width per column across all groups.
+	var colWidths [2]int
+	for _, d := range displays {
+		for _, r := range d.rows {
+			if w := lipgloss.Width(r.german); w > colWidths[0] {
+				colWidths[0] = w
+			}
+			if w := lipgloss.Width(r.english); w > colWidths[1] {
+				colWidths[1] = w
+			}
+		}
+	}
+
+	// Second pass: render.
+	var sb strings.Builder
+
+	for i, d := range displays {
+		if i > 0 {
+			sb.WriteString("\n")
+		}
+
+		// Section header
+		sb.WriteString(renderGroupHeader(d.group.label, d.group.color))
+		sb.WriteString("\n")
+
+		// Table
+		sb.WriteString(renderGroupTable(d.rows, colWidths))
+
+		// Truncation hint
+		if d.truncated > 0 {
+			hint := fmt.Sprintf("  + %d more", d.truncated)
+			sb.WriteString("\n")
+			sb.WriteString(lipgloss.NewStyle().Foreground(lightGray).Render(hint))
+		}
+
+		sb.WriteString("\n")
+	}
+
+	// Footer hint
+	if anyTruncated {
+		sb.WriteString("\n")
+		sb.WriteString(lipgloss.NewStyle().Foreground(lightGray).Render("Use -a to show all results."))
+	}
+
+	return sb.String()
 }
