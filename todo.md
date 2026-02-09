@@ -4,4 +4,4 @@
 - [ ] Show similar words if none match
 - [ ] Make it configurable how much output you get, add option to show all matches, show how many matches there are in total
 - [ ] Detect if we can output ANSI or not (for example don't output ANSI if piping to less or similar)
-- [ ] Make sure max terminal width is respected
+- [ ] If output is too long, user has to scroll up to see most relevant results

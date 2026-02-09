@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
+
 	"example.com/dict/internal/dict"
 )
 
@@ -228,6 +230,55 @@ func TestGroupByWordType(t *testing.T) {
 	})
 }
 
+func TestClampColumnWidths(t *testing.T) {
+	t.Run("no change when fits", func(t *testing.T) {
+		got := ClampColumnWidths([2]int{20, 20}, 80)
+		if got != [2]int{20, 20} {
+			t.Errorf("got %v, want [20 20]", got)
+		}
+	})
+
+	t.Run("shrinks proportionally", func(t *testing.T) {
+		// 40+40+3=83, needs to fit in 43 → available=40, ratio=0.5 → 20,20
+		got := ClampColumnWidths([2]int{40, 40}, 43)
+		if got[0]+got[1] != 40 {
+			t.Errorf("total %d, want 40", got[0]+got[1])
+		}
+	})
+
+	t.Run("preserves ratio", func(t *testing.T) {
+		// 30+10+3=43, needs to fit in 23 → available=20, ratio=0.75 → 15,5
+		got := ClampColumnWidths([2]int{30, 10}, 23)
+		if got[0]+got[1] != 20 {
+			t.Errorf("total %d, want 20", got[0]+got[1])
+		}
+		if got[0] <= got[1] {
+			t.Errorf("col0 (%d) should be larger than col1 (%d)", got[0], got[1])
+		}
+	})
+}
+
+func TestTruncateCell(t *testing.T) {
+	t.Run("no truncation needed", func(t *testing.T) {
+		got := TruncateCell("hello", 10)
+		if stripANSI(got) != "hello" {
+			t.Errorf("got %q, want %q", stripANSI(got), "hello")
+		}
+	})
+
+	t.Run("truncates with ellipsis", func(t *testing.T) {
+		got := TruncateCell("hello world this is long", 10)
+		stripped := stripANSI(got)
+		w := lipgloss.Width(stripped)
+		if w > 10 {
+			t.Errorf("truncated visual width %d exceeds max 10", w)
+		}
+		if !strings.Contains(stripped, "…") {
+			t.Error("truncated string should contain ellipsis")
+		}
+	})
+}
+
 func TestWordTypeLabel(t *testing.T) {
 	tests := []struct {
 		wordType string
@@ -359,8 +410,8 @@ func TestFormatResultsGrouped(t *testing.T) {
 		var borderLengths []int
 		for _, line := range lines {
 			trimmed := strings.TrimSpace(line)
-			if strings.HasPrefix(trimmed, "┌") || strings.HasPrefix(trimmed, "└") {
-				borderLengths = append(borderLengths, len(trimmed))
+			if strings.HasPrefix(trimmed, "╭") || strings.HasPrefix(trimmed, "╰") {
+				borderLengths = append(borderLengths, lipgloss.Width(trimmed))
 			}
 		}
 
@@ -372,6 +423,58 @@ func TestFormatResultsGrouped(t *testing.T) {
 				t.Errorf("border line %d has length %d, want %d (same as first)",
 					i, borderLengths[i], borderLengths[0])
 			}
+		}
+	})
+
+	t.Run("table fits narrow terminal", func(t *testing.T) {
+		origGetTermWidth := *GetTermWidth
+		*GetTermWidth = func() int { return 40 }
+		defer func() { *GetTermWidth = origGetTermWidth }()
+
+		translations := []dict.ScoredTranslation{
+			{
+				Translation: dict.Translation{
+					German:   dict.ParseTerm("Mondfinsternis {f}"),
+					English:  dict.ParseTerm("lunar eclipse [astron.]"),
+					WordType: "noun",
+				},
+				Score: 0.9,
+			},
+		}
+
+		got := FormatResults(&dict.LookupResult{Query: "moon", Translations: translations}, false)
+		stripped := stripANSI(got)
+		lines := strings.Split(stripped, "\n")
+
+		for _, line := range lines {
+			w := lipgloss.Width(line)
+			if w > 40 {
+				t.Errorf("line exceeds terminal width 40: width=%d %q", w, line)
+			}
+		}
+	})
+
+	t.Run("truncated cells show ellipsis", func(t *testing.T) {
+		origGetTermWidth := *GetTermWidth
+		*GetTermWidth = func() int { return 30 }
+		defer func() { *GetTermWidth = origGetTermWidth }()
+
+		translations := []dict.ScoredTranslation{
+			{
+				Translation: dict.Translation{
+					German:   dict.ParseTerm("Mondfinsternis {f}"),
+					English:  dict.ParseTerm("lunar eclipse"),
+					WordType: "noun",
+				},
+				Score: 0.9,
+			},
+		}
+
+		got := FormatResults(&dict.LookupResult{Query: "moon", Translations: translations}, false)
+		stripped := stripANSI(got)
+
+		if !strings.Contains(stripped, "…") {
+			t.Error("truncated output should contain ellipsis character")
 		}
 	})
 

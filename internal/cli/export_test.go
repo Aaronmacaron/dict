@@ -9,3 +9,6 @@ var FormatSubjects = formatSubjects
 var GroupByWordType = groupByWordType
 var WordTypeLabel = wordTypeLabel
 var WordTypeColor = wordTypeColor
+var GetTermWidth = &getTermWidth
+var ClampColumnWidths = clampColumnWidths
+var TruncateCell = truncateCell

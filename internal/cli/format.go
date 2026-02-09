@@ -2,11 +2,14 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/term"
 	"github.com/muesli/termenv"
 
 	"example.com/dict/internal/dict"
@@ -17,7 +20,22 @@ func init() {
 	lipgloss.SetColorProfile(termenv.ANSI256)
 }
 
-const defaultGroupCap = 5
+const (
+	defaultGroupCap = 5
+	// Border overhead for a 2-column table: │ col1 │ col2 │
+	tableBorderOverhead = 3
+	defaultTermWidth    = 80
+)
+
+// getTermWidth returns the terminal width, or a default if detection fails.
+// Overridable for testing.
+var getTermWidth = func() int {
+	w, _, err := term.GetSize(os.Stdout.Fd())
+	if err != nil || w <= 0 {
+		return defaultTermWidth
+	}
+	return w
+}
 
 var (
 	white     = lipgloss.Color("15")
@@ -203,7 +221,33 @@ func groupByWordType(translations []dict.ScoredTranslation) []wordTypeGroup {
 	return groups
 }
 
-// renderGroupHeader renders a styled section header like "── Nouns ──".
+// clampColumnWidths shrinks column widths proportionally so the total table
+// width (columns + borders) fits within maxWidth.
+func clampColumnWidths(colWidths [2]int, maxWidth int) [2]int {
+	total := colWidths[0] + colWidths[1] + tableBorderOverhead
+	if total <= maxWidth {
+		return colWidths
+	}
+	available := maxWidth - tableBorderOverhead
+	if available < 2 {
+		available = 2
+	}
+	ratio := float64(colWidths[0]) / float64(colWidths[0]+colWidths[1])
+	colWidths[0] = int(float64(available) * ratio)
+	colWidths[1] = available - colWidths[0]
+	return colWidths
+}
+
+// truncateCell truncates a styled string to fit within maxWidth, appending "…"
+// if truncation occurs. Handles ANSI escape codes correctly.
+func truncateCell(s string, maxWidth int) string {
+	if lipgloss.Width(s) <= maxWidth {
+		return s
+	}
+	return ansi.Truncate(s, maxWidth, "…")
+}
+
+// renderGroupHeader renders a styled section header like " ── Nouns ──".
 func renderGroupHeader(label string, color lipgloss.Color) string {
 	style := lipgloss.NewStyle().Foreground(color).Bold(true)
 	dash := lipgloss.NewStyle().Foreground(color).Render("──")
@@ -279,6 +323,18 @@ func FormatResults(result *dict.LookupResult, showAll bool) string {
 			if w := lipgloss.Width(r.english); w > colWidths[1] {
 				colWidths[1] = w
 			}
+		}
+	}
+
+	// Clamp column widths to fit the terminal.
+	termWidth := getTermWidth()
+	colWidths = clampColumnWidths(colWidths, termWidth)
+
+	// Truncate cells that exceed their column width.
+	for i := range displays {
+		for j := range displays[i].rows {
+			displays[i].rows[j].german = truncateCell(displays[i].rows[j].german, colWidths[0])
+			displays[i].rows[j].english = truncateCell(displays[i].rows[j].english, colWidths[1])
 		}
 	}
 
