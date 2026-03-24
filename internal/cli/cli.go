@@ -11,6 +11,7 @@ type CLI struct {
 	// Global flags
 	Dict      string `short:"d" help:"Dictionary name (overrides config)"`
 	ConfigDir string `short:"c" help:"Config directory (overrides default)"`
+	Color     string `default:"auto" enum:"auto,always,never" help:"Color output mode (auto, always, never)"`
 
 	// Commands
 	Lookup LookupCmd `cmd:"" default:"withargs" help:"Look up a word in the dictionary"`

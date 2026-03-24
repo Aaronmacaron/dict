@@ -14,6 +14,9 @@ func main() {
 		kong.UsageOnError(),
 	)
 
+	// Configure color output
+	cli.ConfigureOutput(c.Color)
+
 	// Resolve config directory
 	configDir, err := config.DirWithOverride(c.ConfigDir)
 	ctx.FatalIfErrorf(err)

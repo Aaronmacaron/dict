@@ -15,9 +15,27 @@ import (
 	"example.com/dict/internal/dict"
 )
 
-func init() {
-	// Force ANSI color output even when not in a TTY
-	lipgloss.SetColorProfile(termenv.ANSI256)
+// ConfigureOutput sets the color profile based on the given mode.
+// Modes: "always" (force colors), "never" (no colors), "auto" (detect).
+func ConfigureOutput(colorMode string) {
+	var profile termenv.Profile
+
+	switch colorMode {
+	case "always":
+		profile = termenv.ANSI256
+	case "never":
+		profile = termenv.Ascii
+	default: // "auto"
+		if os.Getenv("NO_COLOR") != "" {
+			profile = termenv.Ascii
+		} else if !term.IsTerminal(os.Stdout.Fd()) {
+			profile = termenv.Ascii
+		} else {
+			profile = termenv.ANSI256
+		}
+	}
+
+	lipgloss.SetColorProfile(profile)
 }
 
 const (

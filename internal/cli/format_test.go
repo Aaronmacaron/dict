@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -9,6 +10,11 @@ import (
 
 	"example.com/dict/internal/dict"
 )
+
+func TestMain(m *testing.M) {
+	ConfigureOutput("always")
+	os.Exit(m.Run())
+}
 
 // stripANSI removes ANSI escape codes for test comparison
 func stripANSI(s string) string {
@@ -475,6 +481,34 @@ func TestFormatResultsGrouped(t *testing.T) {
 
 		if !strings.Contains(stripped, "…") {
 			t.Error("truncated output should contain ellipsis character")
+		}
+	})
+
+	t.Run("plain mode has no ANSI codes", func(t *testing.T) {
+		ConfigureOutput("never")
+		defer ConfigureOutput("always")
+
+		result := &dict.LookupResult{
+			Query: "moon",
+			Translations: []dict.ScoredTranslation{
+				{
+					Translation: dict.Translation{
+						German:   dict.ParseTerm("Mond {m}"),
+						English:  dict.ParseTerm("moon"),
+						WordType: "noun",
+					},
+				},
+			},
+		}
+
+		got := FormatResults(result, false)
+
+		if strings.Contains(got, "\x1b[") {
+			t.Error("plain mode should not contain ANSI escape codes")
+		}
+
+		if !strings.Contains(got, "Mond") || !strings.Contains(got, "moon") {
+			t.Error("plain mode should still contain the terms")
 		}
 	})
 
