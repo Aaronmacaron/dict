@@ -47,7 +47,7 @@ func (cmd *LookupCmd) Run(ctx *Context) error {
 		return nil
 	}
 
-	fmt.Println(FormatResults(result, cmd.All))
+	printWithPager(FormatResults(result, cmd.All))
 	return nil
 }
 
