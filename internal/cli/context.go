@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"example.com/dict/internal/config"
@@ -14,10 +15,13 @@ type Context struct {
 }
 
 // ResolveDictPath returns the full path to the dictionary to use.
-func (c *Context) ResolveDictPath() string {
+func (c *Context) ResolveDictPath() (string, error) {
 	dictName := c.DictName
 	if dictName == "" {
 		dictName = c.Config.Dict
 	}
-	return filepath.Join(config.DictsDir(c.ConfigDir), dictName)
+	if dictName == "" {
+		return "", fmt.Errorf("no dictionary configured; register one with 'dict m register <path>' and set it as default with 'dict m default <name>'")
+	}
+	return filepath.Join(config.DictsDir(c.ConfigDir), dictName), nil
 }

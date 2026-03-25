@@ -111,8 +111,8 @@ type wordTypeGroup struct {
 
 // formattedRow holds pre-formatted cell strings for a single translation.
 type formattedRow struct {
-	german  string
-	english string
+	lang1 string
+	lang2 string
 }
 
 // formatTerm formats a Term with styling.
@@ -283,10 +283,30 @@ func renderGroupTable(rows []formattedRow, colWidths [2]int) string {
 		})
 
 	for _, r := range rows {
-		t.Row(r.german, r.english)
+		t.Row(r.lang1, r.lang2)
 	}
 
 	return t.Render()
+}
+
+// renderLanguageHeader renders the global header of the output that shows what the two languages are
+func renderLanguageHeader(lang1, lang2 string, colWidths [2]int) string {
+	t := table.New().Border(lipgloss.HiddenBorder()).StyleFunc(func(row, col int) lipgloss.Style {
+		style := lipgloss.NewStyle().Bold(true)
+		if col == 0 {
+			width := max(colWidths[0]-2, len(lang1))
+			return style.Width(width).Align(lipgloss.Right)
+		} else if col == 2 {
+			width := max(colWidths[1]-2, len(lang2))
+			return style.Width(width)
+		}
+
+		return lipgloss.NewStyle().Width(3)
+	})
+
+	t.Row(lang1, "<=>", lang2)
+
+	return t.Render() + "\n"
 }
 
 // FormatResults formats results as grouped styled tables by word type.
@@ -319,8 +339,8 @@ func FormatResults(result *dict.LookupResult, showAll bool) string {
 		rows := make([]formattedRow, len(showing))
 		for i, st := range showing {
 			rows[i] = formattedRow{
-				german:  formatTerm(st.Translation.German, result.Query),
-				english: formatTerm(st.Translation.English, result.Query),
+				lang1: formatTerm(st.Translation.Lang1, result.Query),
+				lang2: formatTerm(st.Translation.Lang2, result.Query),
 			}
 		}
 
@@ -335,10 +355,10 @@ func FormatResults(result *dict.LookupResult, showAll bool) string {
 	var colWidths [2]int
 	for _, d := range displays {
 		for _, r := range d.rows {
-			if w := lipgloss.Width(r.german); w > colWidths[0] {
+			if w := lipgloss.Width(r.lang1); w > colWidths[0] {
 				colWidths[0] = w
 			}
-			if w := lipgloss.Width(r.english); w > colWidths[1] {
+			if w := lipgloss.Width(r.lang2); w > colWidths[1] {
 				colWidths[1] = w
 			}
 		}
@@ -351,13 +371,16 @@ func FormatResults(result *dict.LookupResult, showAll bool) string {
 	// Truncate cells that exceed their column width.
 	for i := range displays {
 		for j := range displays[i].rows {
-			displays[i].rows[j].german = truncateCell(displays[i].rows[j].german, colWidths[0])
-			displays[i].rows[j].english = truncateCell(displays[i].rows[j].english, colWidths[1])
+			displays[i].rows[j].lang1 = truncateCell(displays[i].rows[j].lang1, colWidths[0])
+			displays[i].rows[j].lang2 = truncateCell(displays[i].rows[j].lang2, colWidths[1])
 		}
 	}
 
 	// Second pass: render.
 	var sb strings.Builder
+
+	// Header indicating languages
+	sb.WriteString(renderLanguageHeader(result.Lang1Name, result.Lang2Name, colWidths))
 
 	for i, d := range displays {
 		if i > 0 {

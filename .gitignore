@@ -20,3 +20,8 @@ CLAUDE.local.md
 # Data
 data/*
 !data/.gitkeep
+
+# Binaries
+bin
+
+docs/api

@@ -99,8 +99,8 @@ func TestDetectLanguagePair(t *testing.T) {
 			t.Fatalf("DetectLanguagePair() error = %v", err)
 		}
 
-		if pair != "English-German" {
-			t.Errorf("DetectLanguagePair() = %q, want %q", pair, "English-German")
+		if pair != "German-English" {
+			t.Errorf("DetectLanguagePair() = %q, want %q", pair, "German-English")
 		}
 	})
 

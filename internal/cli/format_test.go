@@ -109,8 +109,8 @@ func TestFormatResults(t *testing.T) {
 			Translations: []dict.ScoredTranslation{
 				{
 					Translation: dict.Translation{
-						German:   dict.ParseTerm("Mond {m}"),
-						English:  dict.ParseTerm("moon"),
+						Lang1:    dict.ParseTerm("Mond {m}"),
+						Lang2:    dict.ParseTerm("moon"),
 						WordType: "noun",
 					},
 				},
@@ -130,18 +130,18 @@ func TestFormatResults(t *testing.T) {
 	})
 
 	t.Run("formats results with subjects", func(t *testing.T) {
-		germanTerm := dict.ParseTerm("Mond {m}")
-		germanTerm.Subjects = []string{"astron."}
-		englishTerm := dict.ParseTerm("moon")
-		englishTerm.Subjects = []string{"astron."}
+		lang1Term := dict.ParseTerm("Mond {m}")
+		lang1Term.Subjects = []string{"astron."}
+		lang2Term := dict.ParseTerm("moon")
+		lang2Term.Subjects = []string{"astron."}
 
 		result := &dict.LookupResult{
 			Query: "moon",
 			Translations: []dict.ScoredTranslation{
 				{
 					Translation: dict.Translation{
-						German:   germanTerm,
-						English:  englishTerm,
+						Lang1:    lang1Term,
+						Lang2:    lang2Term,
 						WordType: "noun",
 					},
 				},
@@ -163,8 +163,8 @@ func TestFormatResults(t *testing.T) {
 			Translations: []dict.ScoredTranslation{
 				{
 					Translation: dict.Translation{
-						German:   dict.ParseTerm("Mond {m}"),
-						English:  dict.ParseTerm("moon"),
+						Lang1:    dict.ParseTerm("Mond {m}"),
+						Lang2:    dict.ParseTerm("moon"),
 						WordType: "noun",
 					},
 				},
@@ -313,8 +313,8 @@ func TestFormatResultsGrouped(t *testing.T) {
 		for i := 0; i < 8; i++ {
 			translations = append(translations, dict.ScoredTranslation{
 				Translation: dict.Translation{
-					German:   dict.ParseTerm("Wort"),
-					English:  dict.ParseTerm("word"),
+					Lang1:    dict.ParseTerm("Wort"),
+					Lang2:    dict.ParseTerm("word"),
 					WordType: "noun",
 				},
 				Score: float64(8-i) / 10.0,
@@ -337,8 +337,8 @@ func TestFormatResultsGrouped(t *testing.T) {
 		for i := 0; i < 8; i++ {
 			translations = append(translations, dict.ScoredTranslation{
 				Translation: dict.Translation{
-					German:   dict.ParseTerm("Wort"),
-					English:  dict.ParseTerm("word"),
+					Lang1:    dict.ParseTerm("Wort"),
+					Lang2:    dict.ParseTerm("word"),
 					WordType: "noun",
 				},
 				Score: float64(8-i) / 10.0,
@@ -360,16 +360,16 @@ func TestFormatResultsGrouped(t *testing.T) {
 		translations := []dict.ScoredTranslation{
 			{
 				Translation: dict.Translation{
-					German:   dict.ParseTerm("Mond {m}"),
-					English:  dict.ParseTerm("moon"),
+					Lang1:    dict.ParseTerm("Mond {m}"),
+					Lang2:    dict.ParseTerm("moon"),
 					WordType: "noun",
 				},
 				Score: 0.9,
 			},
 			{
 				Translation: dict.Translation{
-					German:   dict.ParseTerm("monden"),
-					English:  dict.ParseTerm("to moon"),
+					Lang1:    dict.ParseTerm("monden"),
+					Lang2:    dict.ParseTerm("to moon"),
 					WordType: "verb",
 				},
 				Score: 0.7,
@@ -391,16 +391,16 @@ func TestFormatResultsGrouped(t *testing.T) {
 		translations := []dict.ScoredTranslation{
 			{
 				Translation: dict.Translation{
-					German:   dict.ParseTerm("Mondfinsternis {f}"),
-					English:  dict.ParseTerm("lunar eclipse"),
+					Lang1:    dict.ParseTerm("Mondfinsternis {f}"),
+					Lang2:    dict.ParseTerm("lunar eclipse"),
 					WordType: "noun",
 				},
 				Score: 0.9,
 			},
 			{
 				Translation: dict.Translation{
-					German:   dict.ParseTerm("monden"),
-					English:  dict.ParseTerm("to moon"),
+					Lang1:    dict.ParseTerm("monden"),
+					Lang2:    dict.ParseTerm("to moon"),
 					WordType: "verb",
 				},
 				Score: 0.7,
@@ -440,8 +440,8 @@ func TestFormatResultsGrouped(t *testing.T) {
 		translations := []dict.ScoredTranslation{
 			{
 				Translation: dict.Translation{
-					German:   dict.ParseTerm("Mondfinsternis {f}"),
-					English:  dict.ParseTerm("lunar eclipse [astron.]"),
+					Lang1:    dict.ParseTerm("Mondfinsternis {f}"),
+					Lang2:    dict.ParseTerm("lunar eclipse [astron.]"),
 					WordType: "noun",
 				},
 				Score: 0.9,
@@ -468,8 +468,8 @@ func TestFormatResultsGrouped(t *testing.T) {
 		translations := []dict.ScoredTranslation{
 			{
 				Translation: dict.Translation{
-					German:   dict.ParseTerm("Mondfinsternis {f}"),
-					English:  dict.ParseTerm("lunar eclipse"),
+					Lang1:    dict.ParseTerm("Mondfinsternis {f}"),
+					Lang2:    dict.ParseTerm("lunar eclipse"),
 					WordType: "noun",
 				},
 				Score: 0.9,
@@ -493,8 +493,8 @@ func TestFormatResultsGrouped(t *testing.T) {
 			Translations: []dict.ScoredTranslation{
 				{
 					Translation: dict.Translation{
-						German:   dict.ParseTerm("Mond {m}"),
-						English:  dict.ParseTerm("moon"),
+						Lang1:    dict.ParseTerm("Mond {m}"),
+						Lang2:    dict.ParseTerm("moon"),
 						WordType: "noun",
 					},
 				},
@@ -516,8 +516,8 @@ func TestFormatResultsGrouped(t *testing.T) {
 		translations := []dict.ScoredTranslation{
 			{
 				Translation: dict.Translation{
-					German:   dict.ParseTerm("Mond {m}"),
-					English:  dict.ParseTerm("moon"),
+					Lang1:    dict.ParseTerm("Mond {m}"),
+					Lang2:    dict.ParseTerm("moon"),
 					WordType: "noun",
 				},
 				Score: 0.9,

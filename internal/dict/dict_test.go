@@ -108,9 +108,31 @@ func TestLanguageName(t *testing.T) {
 	}{
 		{1, "English"},
 		{2, "German"},
+		{6, "Albanian"},
+		{20, "Bulgarian"},
+		{27, "Croatian"},
+		{28, "Czech"},
+		{29, "Danish"},
+		{30, "Dutch"},
+		{31, "Esperanto"},
+		{35, "Finnish"},
 		{36, "French"},
+		{41, "Greek"},
+		{48, "Hungarian"},
+		{49, "Icelandic"},
 		{55, "Italian"},
+		{81, "Norwegian"},
+		{87, "Polish"},
+		{88, "Portuguese"},
+		{92, "Romanian"},
+		{93, "Russian"},
+		{97, "Serbian"},
+		{105, "Slovak"},
 		{108, "Spanish"},
+		{111, "Swedish"},
+		{122, "Turkish"},
+		{138, "Latin"},
+		{143, "Bosnian"},
 		{999, "Unknown(999)"},
 		{0, "Unknown(0)"},
 		{-1, "Unknown(-1)"},
@@ -169,6 +191,13 @@ func TestOpen(t *testing.T) {
 		if d.subjects == nil {
 			t.Error("Open() returned SQLiteDict with nil subjects")
 		}
+		// Fixture is DE-EN: term1=German(2), term2=English(1)
+		if d.term1LangID != 2 {
+			t.Errorf("Open() term1LangID = %d, want 2 (German)", d.term1LangID)
+		}
+		if d.term2LangID != 1 {
+			t.Errorf("Open() term2LangID = %d, want 1 (English)", d.term2LangID)
+		}
 	})
 
 	t.Run("returns error for nonexistent file", func(t *testing.T) {
@@ -199,8 +228,8 @@ func TestLookup(t *testing.T) {
 
 		// First result should be exact match
 		first := result.Translations[0].Translation
-		if first.English.Text != "moon" {
-			t.Errorf("First result English.Text = %q, want %q", first.English.Text, "moon")
+		if first.Lang2.Text != "moon" {
+			t.Errorf("First result English.Text = %q, want %q", first.Lang2.Text, "moon")
 		}
 	})
 
@@ -221,11 +250,11 @@ func TestLookup(t *testing.T) {
 		prefixPos := -1
 
 		for i, st := range result.Translations {
-			if st.Translation.English.Text == "moon" {
+			if st.Translation.Lang2.Text == "moon" {
 				foundExact = true
 				exactPos = i
 			}
-			if st.Translation.English.Text == "moonlight" {
+			if st.Translation.Lang2.Text == "moonlight" {
 				foundPrefix = true
 				prefixPos = i
 			}
@@ -246,12 +275,12 @@ func TestLookup(t *testing.T) {
 			t.Fatal("Lookup() returned no results")
 		}
 
-		// First result should have astronomy subject on English term
+		// First result should have astronomy subject on lang2 term
 		first := result.Translations[0].Translation
-		if len(first.English.Subjects) == 0 {
-			t.Error("Expected English.Subjects to be populated")
-		} else if first.English.Subjects[0] != "astron." {
-			t.Errorf("English.Subjects[0] = %q, want %q", first.English.Subjects[0], "astron.")
+		if len(first.Lang2.Subjects) == 0 {
+			t.Error("Expected Lang2.Subjects to be populated")
+		} else if first.Lang2.Subjects[0] != "astron." {
+			t.Errorf("Lang2.Subjects[0] = %q, want %q", first.Lang2.Subjects[0], "astron.")
 		}
 	})
 

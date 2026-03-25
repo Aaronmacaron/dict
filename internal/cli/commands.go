@@ -34,6 +34,16 @@ func (cmd *RegisterCmd) Run(ctx *Context) error {
 	}
 
 	fmt.Printf("Registered dictionary: %s\n", destName)
+
+	// Auto-set as default if no default is configured
+	if ctx.Config.Dict == "" {
+		ctx.Config.Dict = destName
+		if err := ctx.Config.Save(ctx.ConfigDir); err != nil {
+			return fmt.Errorf("saving config: %w", err)
+		}
+		fmt.Printf("Default dictionary set to: %s\n", destName)
+	}
+
 	return nil
 }
 
@@ -121,22 +131,14 @@ func validateDictFile(path string) error {
 
 // detectLanguagePair detects the language pair in a dictionary.
 func detectLanguagePair(dbPath string) (string, error) {
-	langIDs, err := dict.DetectLanguages(dbPath)
+	d, err := dict.Open(dbPath)
 	if err != nil {
 		return "", fmt.Errorf("not a valid dictionary: %w", err)
 	}
+	defer d.Close()
 
-	if len(langIDs) < 2 {
-		return "", fmt.Errorf("missing language data")
-	}
-
-	// Build language pair string
-	names := make([]string, len(langIDs))
-	for i, id := range langIDs {
-		names[i] = dict.LanguageName(id)
-	}
-
-	return fmt.Sprintf("%s-%s", names[0], names[1]), nil
+	lang1, lang2 := d.LangNames()
+	return fmt.Sprintf("%s-%s", lang1, lang2), nil
 }
 
 // copyFile copies a file from src to dst.

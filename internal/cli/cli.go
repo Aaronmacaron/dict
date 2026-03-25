@@ -30,7 +30,10 @@ func (cmd *LookupCmd) Run(ctx *Context) error {
 		return fmt.Errorf("no word specified")
 	}
 
-	dictPath := ctx.ResolveDictPath()
+	dictPath, err := ctx.ResolveDictPath()
+	if err != nil {
+		return err
+	}
 	d, err := dict.Open(dictPath)
 	if err != nil {
 		return fmt.Errorf("failed to open dictionary: %w", err)

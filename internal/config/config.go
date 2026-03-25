@@ -14,9 +14,7 @@ type Config struct {
 
 // DefaultConfig returns the default configuration.
 func DefaultConfig() Config {
-	return Config{
-		Dict: "dictcc-en-de.db",
-	}
+	return Config{}
 }
 
 // Dir returns the platform-specific config directory for dict.

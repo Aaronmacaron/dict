@@ -9,8 +9,8 @@ import (
 func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
 
-	if cfg.Dict != "dictcc-en-de.db" {
-		t.Errorf("DefaultConfig().Dict = %q, want %q", cfg.Dict, "dictcc-en-de.db")
+	if cfg.Dict != "" {
+		t.Errorf("DefaultConfig().Dict = %q, want empty string", cfg.Dict)
 	}
 }
 

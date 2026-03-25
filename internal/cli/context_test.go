@@ -15,7 +15,10 @@ func TestContext_ResolveDictPath(t *testing.T) {
 			Config:    config.Config{Dict: "default.db"},
 		}
 
-		got := ctx.ResolveDictPath()
+		got, err := ctx.ResolveDictPath()
+		if err != nil {
+			t.Fatalf("ResolveDictPath() error = %v", err)
+		}
 		want := filepath.Join("/test/config", "dicts", "override.db")
 
 		if got != want {
@@ -30,11 +33,27 @@ func TestContext_ResolveDictPath(t *testing.T) {
 			Config:    config.Config{Dict: "configured.db"},
 		}
 
-		got := ctx.ResolveDictPath()
+		got, err := ctx.ResolveDictPath()
+		if err != nil {
+			t.Fatalf("ResolveDictPath() error = %v", err)
+		}
 		want := filepath.Join("/test/config", "dicts", "configured.db")
 
 		if got != want {
 			t.Errorf("ResolveDictPath() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("returns error when no dictionary configured", func(t *testing.T) {
+		ctx := &Context{
+			ConfigDir: "/test/config",
+			DictName:  "",
+			Config:    config.Config{Dict: ""},
+		}
+
+		_, err := ctx.ResolveDictPath()
+		if err == nil {
+			t.Error("ResolveDictPath() expected error when no dictionary configured")
 		}
 	})
 
@@ -44,9 +63,11 @@ func TestContext_ResolveDictPath(t *testing.T) {
 			Config:    config.Config{Dict: "dictcc-en-de.db"},
 		}
 
-		got := ctx.ResolveDictPath()
+		got, err := ctx.ResolveDictPath()
+		if err != nil {
+			t.Fatalf("ResolveDictPath() error = %v", err)
+		}
 
-		// Should be: configDir/dicts/dictName
 		if !filepath.IsAbs(got) {
 			t.Error("ResolveDictPath() should return absolute path when configDir is absolute")
 		}

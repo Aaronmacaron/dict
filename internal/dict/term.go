@@ -16,7 +16,7 @@ var (
 type Term struct {
 	Full         string   // Original full term: "Mond {m} [poet.]"
 	Text         string   // Clean term: "Mond"
-	Gender       string   // "m", "f", "n", "pl", "" (German only)
+	Gender       string   // "m", "f", "n", "pl", "" (languages with grammatical gender)
 	Abbreviation string   // Text in <...>
 	Context      []string // Text in [...] - can have multiple
 	Optional     []string // Text in (...) - optional parts

@@ -18,8 +18,10 @@ type Dictionary interface {
 
 // SQLiteDict implements Dictionary using a SQLite database.
 type SQLiteDict struct {
-	db       *sql.DB
-	subjects map[int]map[int]string // subj_id -> lang_id -> abbr
+	db          *sql.DB
+	subjects    map[int]map[int]string // subj_id -> lang_id -> abbr
+	term1LangID int                    // lang_id for term1 column
+	term2LangID int                    // lang_id for term2 column
 }
 
 // Open opens a dictionary database at the given path.
@@ -42,7 +44,19 @@ func Open(dbPath string) (*SQLiteDict, error) {
 		return nil, err
 	}
 
-	return &SQLiteDict{db: db, subjects: subjects}, nil
+	// Detect language IDs and map them to term1/term2
+	term1LangID, term2LangID, err := detectTermLangIDs(db)
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+
+	return &SQLiteDict{
+		db:          db,
+		subjects:    subjects,
+		term1LangID: term1LangID,
+		term2LangID: term2LangID,
+	}, nil
 }
 
 // loadSubjects loads all subject abbreviations for all languages into memory.
@@ -109,13 +123,13 @@ func (d *SQLiteDict) Lookup(word string) (*LookupResult, error) {
 
 	var scored []ScoredTranslation
 	for rows.Next() {
-		var germanRaw, englishRaw string
+		var lang1Raw, lang2Raw string
 		var wordType, subjIDs string
 		var popularity float64
 
 		err := rows.Scan(
-			&germanRaw,
-			&englishRaw,
+			&lang1Raw,
+			&lang2Raw,
 			&wordType,
 			&subjIDs,
 			&popularity,
@@ -125,24 +139,24 @@ func (d *SQLiteDict) Lookup(word string) (*LookupResult, error) {
 		}
 
 		// Parse terms into structured data with subjects
-		german := ParseTerm(germanRaw)
-		german.Subjects = d.resolveSubjects(subjIDs, 2) // lang_id 2 = German
-		english := ParseTerm(englishRaw)
-		english.Subjects = d.resolveSubjects(subjIDs, 1) // lang_id 1 = English
+		lang1 := ParseTerm(lang1Raw)
+		lang1.Subjects = d.resolveSubjects(subjIDs, d.term1LangID)
+		lang2 := ParseTerm(lang2Raw)
+		lang2.Subjects = d.resolveSubjects(subjIDs, d.term2LangID)
 
 		tr := Translation{
-			German:     german,
-			English:    english,
-			WordType:   wordType,
+			Lang1:      lang1,
+			Lang2:      lang2,
+			WordType:   strings.ToLower(strings.TrimSpace(wordType)),
 			Popularity: popularity,
 		}
 
-		// Calculate match score (best of German or English)
-		germanScore := scoreMatch(german.Text, word)
-		englishScore := scoreMatch(english.Text, word)
-		matchScore := germanScore
-		if englishScore > matchScore {
-			matchScore = englishScore
+		// Calculate match score (best of either language)
+		lang1Score := scoreMatch(lang1.Text, word)
+		lang2Score := scoreMatch(lang2.Text, word)
+		matchScore := lang1Score
+		if lang2Score > matchScore {
+			matchScore = lang2Score
 		}
 
 		// Only include if there's a match
@@ -166,7 +180,13 @@ func (d *SQLiteDict) Lookup(word string) (*LookupResult, error) {
 		scored = scored[:50]
 	}
 
-	return &LookupResult{Query: word, Translations: scored}, nil
+	lang1Name, lang2Name := d.LangNames()
+	return &LookupResult{
+		Query:        word,
+		Lang1Name:    lang1Name,
+		Lang2Name:    lang2Name,
+		Translations: scored,
+	}, nil
 }
 
 // scoreMatch calculates how well the term matches the search word.
@@ -224,7 +244,6 @@ func scoreMatch(text, word string) float64 {
 }
 
 // resolveSubjects converts comma-separated subject IDs to subject abbreviations.
-// langID: 1 = English, 2 = German
 func (d *SQLiteDict) resolveSubjects(subjIDs string, langID int) []string {
 	if subjIDs == "" {
 		return nil
@@ -281,20 +300,147 @@ func DetectLanguages(dbPath string) ([]int, error) {
 	return langIDs, rows.Err()
 }
 
+// langNames maps language IDs to their English names.
+// Derived from all language pairs supported by dict.cc.
+var langNames = map[int]string{
+	1:   "English",
+	2:   "German",
+	6:   "Albanian",
+	20:  "Bulgarian",
+	27:  "Croatian",
+	28:  "Czech",
+	29:  "Danish",
+	30:  "Dutch",
+	31:  "Esperanto",
+	35:  "Finnish",
+	36:  "French",
+	41:  "Greek",
+	48:  "Hungarian",
+	49:  "Icelandic",
+	55:  "Italian",
+	81:  "Norwegian",
+	87:  "Polish",
+	88:  "Portuguese",
+	92:  "Romanian",
+	93:  "Russian",
+	97:  "Serbian",
+	105: "Slovak",
+	108: "Spanish",
+	111: "Swedish",
+	122: "Turkish",
+	138: "Latin",
+	143: "Bosnian",
+}
+
 // LanguageName maps a language ID to its name.
 func LanguageName(langID int) string {
-	switch langID {
-	case 1:
-		return "English"
-	case 2:
-		return "German"
-	case 55:
-		return "Italian"
-	case 36:
-		return "French"
-	case 108:
-		return "Spanish"
-	default:
-		return fmt.Sprintf("Unknown(%d)", langID)
+	if name, ok := langNames[langID]; ok {
+		return name
 	}
+	return fmt.Sprintf("Unknown(%d)", langID)
+}
+
+// langPairKey encodes two language IDs into a single uint32 for map lookup.
+// The smaller ID goes in the high 16 bits, the larger in the low 16 bits.
+func langPairKey(a, b int) uint32 {
+	if a > b {
+		a, b = b, a
+	}
+	return uint32(a)<<16 | uint32(b)
+}
+
+// langPairToTermOrder maps a pair of lang IDs (encoded via langPairKey) to
+// (term1LangID, term2LangID). Derived from dict.cc's known language pairs.
+var langPairToTermOrder = map[uint32][2]int{
+	langPairKey(1, 27):  {1, 27},  // EN-HR
+	langPairKey(1, 30):  {1, 30},  // EN-NL
+	langPairKey(1, 31):  {1, 31},  // EN-EO
+	langPairKey(1, 35):  {1, 35},  // EN-FI
+	langPairKey(1, 36):  {1, 36},  // EN-FR
+	langPairKey(1, 41):  {41, 1},  // EL-EN
+	langPairKey(1, 48):  {1, 48},  // EN-HU
+	langPairKey(1, 49):  {1, 49},  // EN-IS
+	langPairKey(1, 55):  {1, 55},  // EN-IT
+	langPairKey(1, 6):   {1, 6},   // EN-SQ
+	langPairKey(1, 81):  {1, 81},  // EN-NO
+	langPairKey(1, 87):  {1, 87},  // EN-PL
+	langPairKey(1, 88):  {1, 88},  // EN-PT
+	langPairKey(1, 92):  {1, 92},  // EN-RO
+	langPairKey(1, 93):  {1, 93},  // EN-RU
+	langPairKey(1, 97):  {1, 97},  // EN-SR
+	langPairKey(1, 105): {1, 105}, // EN-SK
+	langPairKey(1, 108): {1, 108}, // EN-ES
+	langPairKey(1, 111): {1, 111}, // EN-SV
+	langPairKey(1, 122): {1, 122}, // EN-TR
+	langPairKey(1, 138): {1, 138}, // EN-LA
+	langPairKey(1, 2):   {2, 1},   // DE-EN
+	langPairKey(2, 6):   {2, 6},   // DE-SQ
+	langPairKey(2, 27):  {2, 27},  // DE-HR
+	langPairKey(2, 30):  {2, 30},  // DE-NL
+	langPairKey(2, 31):  {2, 31},  // DE-EO
+	langPairKey(2, 35):  {2, 35},  // DE-FI
+	langPairKey(2, 36):  {2, 36},  // DE-FR
+	langPairKey(2, 41):  {2, 41},  // DE-EL
+	langPairKey(2, 48):  {2, 48},  // DE-HU
+	langPairKey(2, 49):  {2, 49},  // DE-IS
+	langPairKey(2, 55):  {2, 55},  // DE-IT
+	langPairKey(2, 81):  {2, 81},  // DE-NO
+	langPairKey(2, 87):  {2, 87},  // DE-PL
+	langPairKey(2, 88):  {2, 88},  // DE-PT
+	langPairKey(2, 92):  {2, 92},  // DE-RO
+	langPairKey(2, 93):  {2, 93},  // DE-RU
+	langPairKey(2, 97):  {2, 97},  // DE-SR
+	langPairKey(2, 105): {2, 105}, // DE-SK
+	langPairKey(2, 108): {2, 108}, // DE-ES
+	langPairKey(2, 111): {2, 111}, // DE-SV
+	langPairKey(2, 122): {2, 122}, // DE-TR
+	langPairKey(2, 138): {2, 138}, // DE-LA
+	langPairKey(20, 1):  {20, 1},  // BG-EN
+	langPairKey(20, 2):  {20, 2},  // BG-DE
+	langPairKey(28, 1):  {28, 1},  // CS-EN
+	langPairKey(28, 2):  {28, 2},  // CS-DE
+	langPairKey(29, 1):  {29, 1},  // DA-EN
+	langPairKey(29, 2):  {29, 2},  // DA-DE
+	langPairKey(143, 1): {143, 1}, // BS-EN
+	langPairKey(143, 2): {143, 2}, // BS-DE
+}
+
+// detectTermLangIDs detects the two language IDs from the subjects table
+// and determines which maps to term1 and term2 using the known dict.cc
+// language pair ordering.
+func detectTermLangIDs(db *sql.DB) (term1LangID, term2LangID int, err error) {
+	rows, err := db.Query("SELECT DISTINCT lang_id FROM subjects ORDER BY lang_id")
+	if err != nil {
+		return 0, 0, err
+	}
+	defer rows.Close()
+
+	var langIDs []int
+	for rows.Next() {
+		var langID int
+		if err := rows.Scan(&langID); err != nil {
+			return 0, 0, err
+		}
+		langIDs = append(langIDs, langID)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, 0, err
+	}
+
+	if len(langIDs) < 2 {
+		return 0, 0, fmt.Errorf("expected at least 2 languages in subjects table, got %d", len(langIDs))
+	}
+
+	key := langPairKey(langIDs[0], langIDs[1])
+	if order, ok := langPairToTermOrder[key]; ok {
+		return order[0], order[1], nil
+	}
+
+	// Unknown pair: fall back to the order found in the subjects table
+	return langIDs[0], langIDs[1], nil
+}
+
+// LangNames returns the language names for this dictionary.
+func (d *SQLiteDict) LangNames() (lang1Name, lang2Name string) {
+	return LanguageName(d.term1LangID), LanguageName(d.term2LangID)
 }
