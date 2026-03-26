@@ -21,7 +21,7 @@ func (c *Context) ResolveDictPath() (string, error) {
 		dictName = c.Config.Dict
 	}
 	if dictName == "" {
-		return "", fmt.Errorf("no dictionary configured; register one with 'dict m register <path>' and set it as default with 'dict m default <name>'")
+		return "", fmt.Errorf("no dictionary configured; register one with 'dict --register <path>' and set as default with 'dict --default <name>'")
 	}
 	return filepath.Join(config.DictsDir(c.ConfigDir), dictName), nil
 }

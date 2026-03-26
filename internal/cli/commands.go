@@ -11,8 +11,8 @@ import (
 	"example.com/dict/internal/dict"
 )
 
-// Run executes the register command.
-func (cmd *RegisterCmd) Run(ctx *Context) error {
+// runRegister copies a dictionary file to config/dicts/.
+func runRegister(ctx *Context, path string) error {
 	dictsDir := config.DictsDir(ctx.ConfigDir)
 
 	// Ensure dicts directory exists
@@ -21,15 +21,15 @@ func (cmd *RegisterCmd) Run(ctx *Context) error {
 	}
 
 	// Validate the file is a valid dictionary
-	if err := validateDictFile(cmd.Path); err != nil {
+	if err := validateDictFile(path); err != nil {
 		return fmt.Errorf("invalid dictionary file: %w", err)
 	}
 
 	// Copy file to dicts directory
-	destName := filepath.Base(cmd.Path)
+	destName := filepath.Base(path)
 	destPath := filepath.Join(dictsDir, destName)
 
-	if err := copyFile(cmd.Path, destPath); err != nil {
+	if err := copyFile(path, destPath); err != nil {
 		return fmt.Errorf("copying dictionary: %w", err)
 	}
 
@@ -47,33 +47,33 @@ func (cmd *RegisterCmd) Run(ctx *Context) error {
 	return nil
 }
 
-// Run executes the default command.
-func (cmd *DefaultCmd) Run(ctx *Context) error {
+// runDefault sets the default dictionary in config.toml.
+func runDefault(ctx *Context, name string) error {
 	// Verify the dictionary exists
-	dictPath := filepath.Join(config.DictsDir(ctx.ConfigDir), cmd.Name)
+	dictPath := filepath.Join(config.DictsDir(ctx.ConfigDir), name)
 	if _, err := os.Stat(dictPath); os.IsNotExist(err) {
-		return fmt.Errorf("dictionary not found: %s", cmd.Name)
+		return fmt.Errorf("dictionary not found: %s", name)
 	}
 
 	// Update config
-	ctx.Config.Dict = cmd.Name
+	ctx.Config.Dict = name
 	if err := ctx.Config.Save(ctx.ConfigDir); err != nil {
 		return fmt.Errorf("saving config: %w", err)
 	}
 
-	fmt.Printf("Default dictionary set to: %s\n", cmd.Name)
+	fmt.Printf("Default dictionary set to: %s\n", name)
 	return nil
 }
 
-// Run executes the list command.
-func (cmd *ListCmd) Run(ctx *Context) error {
+// runList lists all dictionaries in config/dicts/.
+func runList(ctx *Context) error {
 	dictsDir := config.DictsDir(ctx.ConfigDir)
 
 	entries, err := os.ReadDir(dictsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			fmt.Println("No dictionaries registered.")
-			fmt.Printf("Use 'dict -m register <path>' to add a dictionary.\n")
+			fmt.Println("Use 'dict --register <path>' to add a dictionary.")
 			return nil
 		}
 		return err
@@ -81,7 +81,7 @@ func (cmd *ListCmd) Run(ctx *Context) error {
 
 	if len(entries) == 0 {
 		fmt.Println("No dictionaries registered.")
-		fmt.Printf("Use 'dict -m register <path>' to add a dictionary.\n")
+		fmt.Println("Use 'dict --register <path>' to add a dictionary.")
 		return nil
 	}
 

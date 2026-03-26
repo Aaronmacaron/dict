@@ -9,25 +9,37 @@ import (
 // CLI is the root command structure.
 type CLI struct {
 	// Global flags
-	Dict      string `short:"d" help:"Dictionary name (overrides config)"`
-	ConfigDir string `short:"c" help:"Config directory (overrides default)"`
-	Color     string `default:"auto" enum:"auto,always,never" help:"Color output mode (auto, always, never)"`
+	Dict      string `short:"d" help:"Use a specific dictionary by name"`
+	ConfigDir string `short:"c" help:"Use a custom config directory"`
+	Color     string `default:"auto" enum:"auto,always,never" help:"Color output mode"`
 
-	// Commands
-	Lookup LookupCmd `cmd:"" default:"withargs" help:"Look up a word in the dictionary"`
-	Manage ManageCmd `cmd:"" name:"manage" aliases:"m" help:"Manage dictionaries"`
+	// Lookup flags
+	All bool `short:"a" help:"Show all results (no per-group limit)"`
+
+	// Management flags
+	List     bool   `short:"l" help:"List registered dictionaries"`
+	Register string `help:"Register a dictionary file at the given path" type:"existingfile" placeholder:"PATH"`
+	Default  string `help:"Set the default dictionary" placeholder:"NAME"`
+
+	// Positional argument for lookup
+	Word string `arg:"" optional:"" help:"Word to look up"`
 }
 
-// LookupCmd handles word lookup (the default command).
-type LookupCmd struct {
-	Word string `arg:"" help:"Word to look up"`
-	All  bool   `short:"a" help:"Show all results (no per-group limit)"`
-}
+// Run executes the appropriate action based on flags.
+func (c *CLI) Run(ctx *Context) error {
+	// Management flags take priority
+	switch {
+	case c.List:
+		return runList(ctx)
+	case c.Register != "":
+		return runRegister(ctx, c.Register)
+	case c.Default != "":
+		return runDefault(ctx, c.Default)
+	}
 
-// Run executes the lookup command.
-func (cmd *LookupCmd) Run(ctx *Context) error {
-	if cmd.Word == "" {
-		return fmt.Errorf("no word specified")
+	// Default: word lookup
+	if c.Word == "" {
+		return fmt.Errorf("no word specified\n\nRun 'dict --help' for usage information.")
 	}
 
 	dictPath, err := ctx.ResolveDictPath()
@@ -40,7 +52,7 @@ func (cmd *LookupCmd) Run(ctx *Context) error {
 	}
 	defer d.Close()
 
-	result, err := d.Lookup(cmd.Word)
+	result, err := d.Lookup(c.Word)
 	if err != nil {
 		return fmt.Errorf("lookup failed: %w", err)
 	}
@@ -50,26 +62,6 @@ func (cmd *LookupCmd) Run(ctx *Context) error {
 		return nil
 	}
 
-	printWithPager(FormatResults(result, cmd.All))
+	printWithPager(FormatResults(result, c.All))
 	return nil
 }
-
-// ManageCmd contains dictionary management subcommands.
-type ManageCmd struct {
-	Register RegisterCmd `cmd:"" help:"Register a dictionary file"`
-	Default  DefaultCmd  `cmd:"" name:"default" help:"Set the default dictionary"`
-	List     ListCmd     `cmd:"" help:"List available dictionaries"`
-}
-
-// RegisterCmd copies a dictionary file to config/dicts/.
-type RegisterCmd struct {
-	Path string `arg:"" type:"existingfile" help:"Path to dictionary file"`
-}
-
-// DefaultCmd sets the default dictionary in config.toml.
-type DefaultCmd struct {
-	Name string `arg:"" help:"Dictionary name to set as default"`
-}
-
-// ListCmd lists all dictionaries in config/dicts/.
-type ListCmd struct{}

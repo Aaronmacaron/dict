@@ -6,7 +6,7 @@ Dict is an offline dictionary program for looking up word translations. It uses 
 
 1. Register a dictionary:
    ```sh
-   dict m register path/to/dictcc-en-de.db
+   dict --register path/to/dictcc-en-de.db
    ```
 
 2. Look up a word:
@@ -14,9 +14,7 @@ Dict is an offline dictionary program for looking up word translations. It uses 
    dict moon
    ```
 
-## Commands
-
-### Word Lookup (Default)
+## Word Lookup
 
 Look up translations for a word:
 
@@ -34,16 +32,15 @@ dict -a moon       # Show all results (no per-group limit)
 
 Results are grouped by word type (nouns, verbs, adjectives, etc.) with up to 5 results per group. Use `--all` / `-a` to show all results.
 
-### Dictionary Management
-
-Management commands are accessed via `dict manage` or the shorthand `dict m`.
+## Dictionary Management
 
 #### List Dictionaries
 
 Show all registered dictionaries with their language pairs:
 
 ```sh
-dict m list
+dict --list
+dict -l
 ```
 
 **Output:**
@@ -59,12 +56,12 @@ The `*` indicates the default dictionary.
 Copy a dictionary file to the config directory:
 
 ```sh
-dict m register <path>
+dict --register <path>
 ```
 
 **Example:**
 ```sh
-dict m register ~/Downloads/dictcc-fr-en.db
+dict --register ~/Downloads/dictcc-fr-en.db
 ```
 
 #### Set Default Dictionary
@@ -72,22 +69,15 @@ dict m register ~/Downloads/dictcc-fr-en.db
 Change the default dictionary:
 
 ```sh
-dict m default <name>
+dict --default <name>
 ```
 
 **Example:**
 ```sh
-dict m default dictcc-fr-en.db
+dict --default dictcc-fr-en.db
 ```
 
-## Global Flags
-
-These flags can be used with any command:
-
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--dict` | `-d` | Use a specific dictionary (by name) |
-| `--config-dir` | `-c` | Use a custom config directory |
+## Flags
 
 ### Lookup Flags
 
@@ -95,10 +85,26 @@ These flags can be used with any command:
 |------|-------|-------------|
 | `--all` | `-a` | Show all results (no per-group limit) |
 
+### Management Flags
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--list` | `-l` | List registered dictionaries |
+| `--register PATH` | | Register a dictionary file |
+| `--default NAME` | | Set the default dictionary |
+
+### Global Flags
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--dict` | `-d` | Use a specific dictionary (by name) |
+| `--config-dir` | `-c` | Use a custom config directory |
+| `--color` | | Color output mode (auto, always, never) |
+
 **Examples:**
 ```sh
 dict -d dictcc-fr-en.db bonjour     # Use French-English dictionary
-dict -c /custom/path m list         # Use custom config directory
+dict -c /custom/path --list         # Use custom config directory
 ```
 
 ## Configuration
