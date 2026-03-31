@@ -1,7 +1,2 @@
-- [ ] Add support for arbitrary languages, not just hardcode english/german
-- [ ] CLI interface is kind of weird right now, implicit subcommand "lookup" and help page is kind of confusing, find better interface
 - [ ] Add interactive mode where user can type and results show up as you type
 - [ ] Show similar words if none match
-- [ ] Make it configurable how much output you get, add option to show all matches, show how many matches there are in total
-- [ ] Detect if we can output ANSI or not (for example don't output ANSI if piping to less or similar)
-- [ ] If output is too long, user has to scroll up to see most relevant results
