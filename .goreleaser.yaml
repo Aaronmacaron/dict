@@ -1,0 +1,65 @@
+version: 2
+
+project_name: dict
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: dict
+    main: ./cmd/dict
+    binary: dict
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    overrides:
+      - goos: linux
+        goarch: amd64
+        env:
+          - CGO_ENABLED=1
+          - CC=zig cc -target x86_64-linux-musl
+          - CXX=zig c++ -target x86_64-linux-musl
+      - goos: linux
+        goarch: arm64
+        env:
+          - CGO_ENABLED=1
+          - CC=zig cc -target aarch64-linux-musl
+          - CXX=zig c++ -target aarch64-linux-musl
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+
+archives:
+  - id: dict
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+homebrew_casks:
+  - name: dict
+    homepage: https://github.com/Aaronmacaron/dict
+    description: Offline dictionary for looking up word translations
+    repository:
+      owner: Aaronmacaron
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
