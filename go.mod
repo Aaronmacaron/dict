@@ -1,4 +1,4 @@
-module example.com/dict
+module github.com/Aaronmacaron/dict
 
 go 1.25.5
 

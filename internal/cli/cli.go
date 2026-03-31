@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	"example.com/dict/internal/dict"
+	"github.com/Aaronmacaron/dict/internal/dict"
 )
 
 // CLI is the root command structure.

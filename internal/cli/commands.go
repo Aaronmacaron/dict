@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"example.com/dict/internal/config"
-	"example.com/dict/internal/dict"
+	"github.com/Aaronmacaron/dict/internal/config"
+	"github.com/Aaronmacaron/dict/internal/dict"
 )
 
 // runRegister copies a dictionary file to config/dicts/.

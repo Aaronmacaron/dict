@@ -12,7 +12,7 @@ import (
 	"github.com/charmbracelet/x/term"
 	"github.com/muesli/termenv"
 
-	"example.com/dict/internal/dict"
+	"github.com/Aaronmacaron/dict/internal/dict"
 )
 
 // ConfigureOutput sets the color profile based on the given mode.

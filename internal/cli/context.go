@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"example.com/dict/internal/config"
+	"github.com/Aaronmacaron/dict/internal/config"
 )
 
 // Context provides shared state to all command Run() methods.

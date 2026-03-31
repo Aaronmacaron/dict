@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"example.com/dict/internal/cli"
-	"example.com/dict/internal/config"
+	"github.com/Aaronmacaron/dict/internal/cli"
+	"github.com/Aaronmacaron/dict/internal/config"
 	"github.com/alecthomas/kong"
 )
 

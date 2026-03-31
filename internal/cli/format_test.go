@@ -8,7 +8,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"example.com/dict/internal/dict"
+	"github.com/Aaronmacaron/dict/internal/dict"
 )
 
 func TestMain(m *testing.M) {

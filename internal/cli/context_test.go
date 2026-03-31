@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"example.com/dict/internal/config"
+	"github.com/Aaronmacaron/dict/internal/config"
 )
 
 func TestContext_ResolveDictPath(t *testing.T) {
