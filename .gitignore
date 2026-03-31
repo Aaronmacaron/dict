@@ -24,4 +24,7 @@ data/*
 # Binaries
 bin
 
+# MacOS
+.DS_Store
+
 docs/api
