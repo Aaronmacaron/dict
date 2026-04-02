@@ -1,2 +1,3 @@
 - [ ] Add interactive mode where user can type and results show up as you type
 - [ ] Show similar words if none match
+- [ ] Add --version flag
