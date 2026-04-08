@@ -63,6 +63,7 @@ func printHelp(w io.Writer) {
 		{flags: "-d, --dict NAME", desc: "Use a specific dictionary for this lookup", example: "dict -d dictcc-fr-en.db bonjour"},
 		{flags: "-c, --config-dir PATH", desc: "Use a custom config directory", example: "dict -c /custom/path --list"},
 		{flags: "    --color MODE", desc: "Color output: auto, always, never (default: auto)"},
+		{flags: "-v, --version", desc: "Show version"},
 	})
 
 	// Examples

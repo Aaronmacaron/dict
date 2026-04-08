@@ -35,6 +35,7 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
+      - -X main.Version={{.Version}}
 
 archives:
   - id: dict

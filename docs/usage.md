@@ -100,6 +100,7 @@ dict --default dictcc-fr-en.db
 | `--dict` | `-d` | Use a specific dictionary (by name) |
 | `--config-dir` | `-c` | Use a custom config directory |
 | `--color` | | Color output mode (auto, always, never) |
+| `--version` | `-v` | Show version |
 
 **Examples:**
 ```sh

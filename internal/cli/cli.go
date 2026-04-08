@@ -12,6 +12,7 @@ type CLI struct {
 	Dict      string `short:"d" help:"Use a specific dictionary by name"`
 	ConfigDir string `short:"c" help:"Use a custom config directory"`
 	Color     string `default:"auto" enum:"auto,always,never" help:"Color output mode"`
+	Version   bool   `short:"v" help:"Show version"`
 
 	// Lookup flags
 	All bool `short:"a" help:"Show all results (no per-group limit)"`
@@ -23,12 +24,18 @@ type CLI struct {
 
 	// Positional argument for lookup
 	Word string `arg:"" optional:"" help:"Word to look up"`
+
+	// Set by main, not a flag
+	VersionStr string `kong:"-"`
 }
 
 // Run executes the appropriate action based on flags.
 func (c *CLI) Run(ctx *Context) error {
-	// Management flags take priority
+	// Version and management flags take priority
 	switch {
+	case c.Version:
+		fmt.Printf("dict version %s\n", c.VersionStr)
+		return nil
 	case c.List:
 		return runList(ctx)
 	case c.Register != "":
