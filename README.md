@@ -49,8 +49,7 @@ You can use the `-d` or `--dict` flag to temporarily use a dictionary other than
 
 ## Installation
 
-There are different ways to install dict.
-The installation methods are confirmed to work on macOS and Linux, and manual as well as local compilation should work on Windows as well, but I didn't test it.
+There are different ways to install dict on macOS, Linux, and Windows.
 
 ### Homebrew
 
@@ -64,12 +63,21 @@ xattr -d com.apple.quarantine $(which dict)
 The second command is required because I didn't officially sign the binaries by going through the Apple signing process.
 If you use homebrew on Linux you can skip this step.
 
-### Install script (Linux and MacOS)
+### Install script (Linux and macOS)
 
 The installation script installs dict at `/usr/local/bin`.
 
 ```shell
 curl https://raw.githubusercontent.com/Aaronmacaron/dict/master/install.sh | sh
+```
+
+### Install script (Windows)
+
+The installation script installs dict at `%LOCALAPPDATA%\Programs\dict` and adds it to your user `PATH`.
+Run it from PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/Aaronmacaron/dict/master/install.ps1 | iex
 ```
 
 ### Manual

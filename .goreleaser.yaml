@@ -15,6 +15,7 @@ builds:
     goos:
       - linux
       - darwin
+      - windows
     goarch:
       - amd64
       - arm64
@@ -31,6 +32,18 @@ builds:
           - CGO_ENABLED=1
           - CC=zig cc -target aarch64-linux-musl
           - CXX=zig c++ -target aarch64-linux-musl
+      - goos: windows
+        goarch: amd64
+        env:
+          - CGO_ENABLED=1
+          - CC=zig cc -target x86_64-windows-gnu
+          - CXX=zig c++ -target x86_64-windows-gnu
+      - goos: windows
+        goarch: arm64
+        env:
+          - CGO_ENABLED=1
+          - CC=zig cc -target aarch64-windows-gnu
+          - CXX=zig c++ -target aarch64-windows-gnu
     flags:
       - -trimpath
     ldflags:
